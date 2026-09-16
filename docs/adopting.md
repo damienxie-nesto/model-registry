@@ -23,6 +23,12 @@ jobs:
           block-unknown: 'false'   # start in warn mode
 ```
 
+> **Trigger this on `pull_request` only.** The scan step (and the private-repo
+> fallback below) reads `github.event.pull_request.base.sha` and `.head.sha`.
+> On any other event type (e.g. `push`) those are empty, and `git diff "" ""`
+> fails loudly. That's safe — it errors instead of silently scanning nothing —
+> but wire this workflow to `pull_request` as shown, not to `push`.
+
 ## Rollout order
 
 1. Land it with `block-unknown: 'false'`. Unregistered models warn; deprecated and
@@ -40,9 +46,26 @@ merely look like model IDs, not to skip an approval.
 
 The action above requires `actions/checkout` to be able to read this repo, which
 only works once it is public. If this repo stays private, replace the `uses:`
-step with a direct install:
+step with an explicit checkout, install, and `--registry` flag — mirroring
+exactly what `action.yml` does for the public case:
 
 ```yaml
-      - run: pip install "git+https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/OWNER/model-registry.git"
-      - run: git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | model-registry scan
+      - uses: actions/checkout@v4
+        with:
+          repository: OWNER/model-registry
+          token: ${{ secrets.REGISTRY_TOKEN }}
+          path: .model-registry
+      - run: pip install ./.model-registry
+      - run: |
+          git diff "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" \
+            | model-registry scan --registry .model-registry/models.yaml
 ```
+
+Do not `pip install` straight from a `git+https://...` URL and then run
+`model-registry scan` with no `--registry` flag. `pip install` only installs
+the `model_registry` Python package — `models.yaml` lives at the repo root,
+is not packaged as package data, and never ends up on disk. With no
+`--registry`, the CLI falls back to a path inside `site-packages` where
+`models.yaml` does not exist, so the check fails with `registry invalid:
+registry file not found: ...` on every single PR, without ever scanning a
+line. Always give it an actual checkout to read `models.yaml` from, as above.
