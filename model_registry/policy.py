@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from model_registry.schema import Hosting, ModelEntry, Residency, Status
+from model_registry.schema import Hosting, LaunchStage, ModelEntry, Residency, Status
 
 #: Region values that record nothing. An entry carrying one of these has not had its
 #: physical location verified, so it must not reach the `bank` tier however its other
@@ -41,7 +41,13 @@ def derive_tiers(entry: ModelEntry) -> frozenset[Tier]:
     data_stays_under_our_control = entry.residency is Residency.CANADA or (
         entry.open_weights and entry.hosting is Hosting.SELF_HOSTED
     )
-    if entry.status is Status.APPROVED and not entry.trains_on_customer_data and data_stays_under_our_control:
+    generally_available = entry.launch_stage is LaunchStage.GA
+    if (
+        entry.status is Status.APPROVED
+        and not entry.trains_on_customer_data
+        and generally_available
+        and data_stays_under_our_control
+    ):
         tiers.add(Tier.BANK)
 
     return frozenset(tiers)

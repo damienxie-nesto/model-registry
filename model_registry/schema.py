@@ -33,6 +33,25 @@ class Status(StrEnum):
     BANNED = 'banned'
 
 
+class LaunchStage(StrEnum):
+    """A model's launch stage at its provider.
+
+    Compliance-relevant, not cosmetic: Google's data residency commitments for
+    Vertex AI explicitly exclude any feature in experimental or preview launch
+    status. A preview model can therefore carry a regional `region` value while
+    Google makes no residency commitment about it at all, so launch stage has to
+    be recorded as its own fact rather than inferred from the region.
+
+    `UNVERIFIED` is the default so an unrecorded stage fails closed: it cannot
+    satisfy the bank tier.
+    """
+
+    GA = 'ga'
+    PREVIEW = 'preview'
+    EXPERIMENTAL = 'experimental'
+    UNVERIFIED = 'unverified'
+
+
 class UseCase(StrEnum):
     OCR = 'ocr'
     EMBEDDING = 'embedding'
@@ -68,6 +87,7 @@ class ModelEntry(BaseModel):
     residency: Residency
     open_weights: bool
     trains_on_customer_data: bool
+    launch_stage: LaunchStage = LaunchStage.UNVERIFIED
     use_cases: Annotated[list[UseCase], Field(min_length=1)]
     status: Status
     approved_on: date

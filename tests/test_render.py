@@ -79,7 +79,7 @@ def test_pipe_in_a_cell_cannot_forge_extra_columns() -> None:
     row = render_table(registry).splitlines()[-1]
     cells = [cell.strip() for cell in re.split(r'(?<!\\)\|', row)[1:-1]]
 
-    assert len(cells) == 8
+    assert len(cells) == 9
     assert cells[2] == 'approved'  # the real status column, not the forged one
     assert cells[3] == 'standard'  # the tiers column; the forged row claimed `bank`
     assert r'\|' in cells[0]
@@ -88,5 +88,5 @@ def test_pipe_in_a_cell_cannot_forge_extra_columns() -> None:
 def test_escaping_leaves_ordinary_cells_untouched() -> None:
     registry = Registry(models=(_resolved('gemini-3.5-flash', frozenset({Tier.STANDARD})),))
     assert render_table(registry).splitlines()[-1] == (
-        '| `gemini-3.5-flash` | ocr | approved | standard | vertex | northamerica-northeast1 | canada | 2027-09-16 |'
+        '| `gemini-3.5-flash` | ocr | approved | standard | vertex | northamerica-northeast1 | canada | unverified | 2027-09-16 |'
     )

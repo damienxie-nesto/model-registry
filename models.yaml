@@ -16,6 +16,36 @@
 # `residency: multi` records Vertex's `global` endpoint, which gives no regional
 # guarantee — it is not Canadian residency, and must not be read as such.
 #
+#
+# LAUNCH STAGE IS A RESIDENCY FACT, NOT METADATA. Google's Vertex AI data residency
+# commitments explicitly exclude any feature in experimental or preview launch
+# status, so a preview model can carry a Canadian `region` while Google commits
+# nothing about where it is processed. `launch_stage` is therefore recorded per
+# model and the bank tier requires `ga`. It is `unverified` almost everywhere below
+# because GA status has not been confirmed per model — that is an unrecorded fact,
+# not an assumption of the worst case.
+#
+# VERIFIED AGAINST GOOGLE'S DOCUMENTATION, 2026-09-16:
+#   - Global endpoints "don't provide regional isolation or data residency
+#     guarantees", and you "can't control or know which region your ML processing
+#     requests are sent to". Hence residency: multi for every `global` entry.
+#     https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/locations
+#   - Residency commitments exclude experimental and preview launch stages.
+#     https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/data-residency
+#   - Google does not use customer data to train its models without permission,
+#     which is the basis for trains_on_customer_data: false.
+#     https://cloud.google.com/vertex-ai
+#
+# OPEN QUESTION — CANADIAN ML-PROCESSING COMMITMENT. Google's docs are not
+# consistent on whether the machine-learning-processing residency commitment (as
+# opposed to data-at-rest) extends to Canada: one page states the AI/ML data
+# location commitment is supported only in US and EU locations, while Gemini 3.5
+# Flash is separately described as available in Canada with both at-rest residency
+# and ML processing. Until that is resolved with Google or through the DPA, the
+# `canada` residency values below are grounded in the gateway's regional pinning,
+# not in a confirmed contractual ML-processing guarantee. Resolve before approving
+# any entry for bank clients.
+#
 # STATUS IS STILL `trial` EVERYWHERE. The location facts are now verified; the
 # governance decision to approve a model is a human one. Flipping a `-ca` entry to
 # `approved` grants it the bank tier automatically via the policy rules.
@@ -32,6 +62,7 @@
   residency: canada
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [ocr, general]
   status: trial
   approved_on: 2026-09-16
@@ -52,6 +83,7 @@
   residency: canada
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
@@ -69,6 +101,7 @@
   residency: canada
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
@@ -89,6 +122,7 @@
   residency: canada
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [embedding]
   status: trial
   approved_on: 2026-09-16
@@ -106,6 +140,7 @@
   residency: canada
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [embedding]
   status: trial
   approved_on: 2026-09-16
@@ -127,6 +162,7 @@
   residency: multi
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [ocr, general]
   status: trial
   approved_on: 2026-09-16
@@ -144,6 +180,7 @@
   residency: multi
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
@@ -161,6 +198,7 @@
   residency: multi
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
@@ -178,6 +216,7 @@
   residency: multi
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
@@ -195,6 +234,7 @@
   residency: multi
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
@@ -212,6 +252,7 @@
   residency: multi
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
@@ -229,6 +270,7 @@
   residency: multi
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: preview
   use_cases: [ocr, general]
   status: trial
   approved_on: 2026-09-16
@@ -251,6 +293,7 @@
   residency: us
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [embedding]
   status: trial
   approved_on: 2026-09-16
@@ -268,6 +311,7 @@
   residency: us
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: unverified
   use_cases: [embedding]
   status: trial
   approved_on: 2026-09-16

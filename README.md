@@ -26,22 +26,22 @@ Tiers are **derived**, not declared: see `model_registry/policy.py` for the rule
 ## Approved models
 
 <!-- BEGIN MODELS -->
-| Model | Use cases | Status | Tiers | Hosting | Region | Residency | Review by |
-|---|---|---|---|---|---|---|---|
-| `gemini-2.5-flash` | ocr | trial | standard | vertex | global | multi | 2027-03-16 |
-| `gemini-2.5-flash-ca` | ocr | trial | standard | vertex | northamerica-northeast1 | canada | 2027-03-16 |
-| `gemini-2.5-pro` | general, ocr | trial | standard | vertex | global | multi | 2027-03-16 |
-| `gemini-2.5-pro-ca` | general, ocr | trial | standard | vertex | northamerica-northeast1 | canada | 2027-03-16 |
-| `gemini-3.1-flash-lite` | ocr | trial | standard | vertex | global | multi | 2027-03-16 |
-| `gemini-3.1-pro-preview` | general, ocr | trial | standard | vertex | global | multi | 2027-03-16 |
-| `gemini-3.5-flash` | ocr | trial | standard | vertex | global | multi | 2027-03-16 |
-| `gemini-3.5-flash-ca` | ocr | trial | standard | vertex | northamerica-northeast1 | canada | 2027-03-16 |
-| `gemini-3.5-flash-lite` | ocr | trial | standard | vertex | global | multi | 2027-03-16 |
-| `gemini-3.6-flash` | ocr | trial | standard | vertex | global | multi | 2027-03-16 |
-| `gemini-embedding-001` | embedding | trial | standard | vertex | us-central1 | us | 2027-03-16 |
-| `gemini-embedding-001-ca` | embedding | trial | standard | vertex | northamerica-northeast1 | canada | 2027-03-16 |
-| `text-multilingual-embedding-002` | embedding | trial | standard | vertex | us-central1 | us | 2027-03-16 |
-| `text-multilingual-embedding-002-ca` | embedding | trial | standard | vertex | northamerica-northeast1 | canada | 2027-03-16 |
+| Model | Use cases | Status | Tiers | Hosting | Region | Residency | Launch stage | Review by |
+|---|---|---|---|---|---|---|---|---|
+| `gemini-2.5-flash` | ocr | trial | standard | vertex | global | multi | unverified | 2027-03-16 |
+| `gemini-2.5-flash-ca` | ocr | trial | standard | vertex | northamerica-northeast1 | canada | unverified | 2027-03-16 |
+| `gemini-2.5-pro` | general, ocr | trial | standard | vertex | global | multi | unverified | 2027-03-16 |
+| `gemini-2.5-pro-ca` | general, ocr | trial | standard | vertex | northamerica-northeast1 | canada | unverified | 2027-03-16 |
+| `gemini-3.1-flash-lite` | ocr | trial | standard | vertex | global | multi | unverified | 2027-03-16 |
+| `gemini-3.1-pro-preview` | general, ocr | trial | standard | vertex | global | multi | preview | 2027-03-16 |
+| `gemini-3.5-flash` | ocr | trial | standard | vertex | global | multi | unverified | 2027-03-16 |
+| `gemini-3.5-flash-ca` | ocr | trial | standard | vertex | northamerica-northeast1 | canada | unverified | 2027-03-16 |
+| `gemini-3.5-flash-lite` | ocr | trial | standard | vertex | global | multi | unverified | 2027-03-16 |
+| `gemini-3.6-flash` | ocr | trial | standard | vertex | global | multi | unverified | 2027-03-16 |
+| `gemini-embedding-001` | embedding | trial | standard | vertex | us-central1 | us | unverified | 2027-03-16 |
+| `gemini-embedding-001-ca` | embedding | trial | standard | vertex | northamerica-northeast1 | canada | unverified | 2027-03-16 |
+| `text-multilingual-embedding-002` | embedding | trial | standard | vertex | us-central1 | us | unverified | 2027-03-16 |
+| `text-multilingual-embedding-002-ca` | embedding | trial | standard | vertex | northamerica-northeast1 | canada | unverified | 2027-03-16 |
 <!-- END MODELS -->
 
 ## Choosing a model

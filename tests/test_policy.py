@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 
 from model_registry.policy import Tier, derive_tiers
-from model_registry.schema import Hosting, ModelEntry, Provider, Residency, Status, UseCase
+from model_registry.schema import Hosting, LaunchStage, ModelEntry, Provider, Residency, Status, UseCase
 
 
 def _entry(**overrides: object) -> ModelEntry:
@@ -18,6 +18,7 @@ def _entry(**overrides: object) -> ModelEntry:
         'residency': Residency.CANADA,
         'open_weights': False,
         'trains_on_customer_data': False,
+        'launch_stage': LaunchStage.GA,
         'use_cases': [UseCase.OCR],
         'status': Status.APPROVED,
         'approved_on': date(2026, 9, 16),
@@ -68,3 +69,21 @@ def test_self_hosted_requires_open_weights_for_bank() -> None:
 def test_deprecated_and_banned_serve_no_tier(status: Status) -> None:
     tiers = derive_tiers(_entry(status=status, replacement='other-model'))
     assert tiers == frozenset()
+
+
+def test_preview_launch_stage_never_reaches_bank_tier() -> None:
+    """Google's Vertex AI residency commitments exclude preview features, so a
+    preview model's region setting buys no residency guarantee."""
+    tiers = derive_tiers(_entry(launch_stage=LaunchStage.PREVIEW))
+    assert tiers == frozenset({Tier.STANDARD})
+
+
+def test_experimental_launch_stage_never_reaches_bank_tier() -> None:
+    tiers = derive_tiers(_entry(launch_stage=LaunchStage.EXPERIMENTAL))
+    assert tiers == frozenset({Tier.STANDARD})
+
+
+def test_unverified_launch_stage_fails_closed() -> None:
+    """The default must not be able to satisfy the bank tier."""
+    tiers = derive_tiers(_entry(launch_stage=LaunchStage.UNVERIFIED))
+    assert tiers == frozenset({Tier.STANDARD})

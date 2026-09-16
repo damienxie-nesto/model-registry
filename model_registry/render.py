@@ -6,8 +6,8 @@ BEGIN_MARKER = '<!-- BEGIN MODELS -->'
 END_MARKER = '<!-- END MODELS -->'
 
 _HEADER = (
-    '| Model | Use cases | Status | Tiers | Hosting | Region | Residency | Review by |\n'
-    '|---|---|---|---|---|---|---|---|'
+    '| Model | Use cases | Status | Tiers | Hosting | Region | Residency | Launch stage | Review by |\n'
+    '|---|---|---|---|---|---|---|---|---|'
 )
 
 
@@ -37,7 +37,7 @@ def render_table(registry: Registry) -> str:
         rows.append(
             f'| `{_cell(entry.id)}` | {_cell(use_cases)} | {_cell(entry.status.value)} | {_cell(tiers)} | '
             f'{_cell(entry.hosting.value)} | {_cell(entry.region)} | {_cell(entry.residency.value)} | '
-            f'{_cell(entry.review_by.isoformat())} |',
+            f'{_cell(entry.launch_stage.value)} | {_cell(entry.review_by.isoformat())} |',
         )
     return '\n'.join(rows)
 

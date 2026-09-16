@@ -27,7 +27,7 @@ def _readme_rows() -> list[list[str]]:
     rows = []
     for line in body.strip().splitlines():
         cells = [cell.strip() for cell in re.split(r'(?<!\\)\|', line)[1:-1]]
-        if len(cells) == 8 and not cells[0].startswith(('---', 'Model')):
+        if len(cells) == 9 and not cells[0].startswith(('---', 'Model')):
             rows.append(cells)
     return rows
 

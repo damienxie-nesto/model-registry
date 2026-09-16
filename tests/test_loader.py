@@ -19,6 +19,7 @@ VALID_ENTRY = """
   residency: canada
   open_weights: false
   trains_on_customer_data: false
+  launch_stage: ga
   use_cases: [ocr]
   status: approved
   approved_on: 2026-09-16
