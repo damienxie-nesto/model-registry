@@ -14,12 +14,15 @@ first guess at the interface would suggest.
 - **Exit 1** — drift found. The gateway was read successfully but disagrees with the
   registry: something is served that isn't approved, or something approved isn't
   served.
-- **Exit 2** — the check did not run to completion, for **either** of two reasons:
+- **Exit 2** — the check did not run to completion, for **any** of three reasons:
   1. **Misconfigured**: `--base-url`/`--api-key` (normally
      `LITELLM_GATEWAY_BASE_URL`/`LITELLM_GATEWAY_API_KEY`) are missing. This is the
      most likely real-world cause of a 2 — a routine with a broken or missing secret
      will hit this every time, before ever touching the network.
-  2. **Unreachable**: the gateway could not be read into a usable result. This covers
+  2. **Unloadable**: `models.yaml` itself could not be loaded — missing, malformed
+     YAML, not a list, or an entry that fails validation. The gateway was never
+     contacted, so there is nothing to compare against and nothing was compared.
+  3. **Unreachable**: the gateway could not be read into a usable result. This covers
      more than "the network is down" — `fetch_served_models` also raises this for a
      non-2xx response, a body that isn't valid (or valid UTF-8) JSON, a payload that
      isn't shaped like `{"data": [...]}`, an entry in `data` missing `model_name`, and
@@ -38,12 +41,12 @@ first guess at the interface would suggest.
 
   | Key | Type | Meaning |
   |---|---|---|
-  | `status` | string | One of `clean`, `drift`, `unreachable`, `misconfigured`. |
+  | `status` | string | One of `clean`, `drift`, `unreachable`, `misconfigured`, `unloadable`. |
   | `clean` | bool | `true` iff `status == "clean"`. |
-  | `models_checked` | int | Total number of models in the registry (present on every status, including failures). |
-  | `served_count` | int or `null` | Number of models the gateway reported serving. `null` whenever the gateway wasn't successfully read (`unreachable` or `misconfigured`). |
-  | `items` | array | `{"kind", "model_id", "detail"}` objects. Empty on `clean`, `unreachable`, and `misconfigured`. `kind` is `served_not_approved` or `approved_not_served`. |
-  | `error` | string or `null` | The failure message on `unreachable`/`misconfigured`; `null` otherwise. |
+  | `models_checked` | int | Total number of models in the registry (present on every status, including failures). `0` on `unloadable`, where the registry could not be read at all. |
+  | `served_count` | int or `null` | Number of models the gateway reported serving. `null` whenever the gateway wasn't successfully read (`unreachable`, `misconfigured`, `unloadable`). |
+  | `items` | array | `{"kind", "model_id", "detail"}` objects. Empty on every status except `drift`. `kind` is `served_not_approved` or `approved_not_served`. |
+  | `error` | string or `null` | The failure message on `unreachable`/`misconfigured`/`unloadable`; `null` otherwise. |
 
 ## Routine prompt
 
@@ -58,11 +61,12 @@ first guess at the interface would suggest.
 >    - `status == "drift"` — post the item count, then one line per item:
 >      `<kind>: <model_id> — <detail>`. Lead with `served_not_approved` items; those
 >      mean an unapproved model is callable right now.
->    - `status == "unreachable"` or `status == "misconfigured"` — post
+>    - `status` is `unreachable`, `misconfigured`, or `unloadable` — post
 >      `model registry · drift check FAILED (<status>)` followed by the `error`
->      field. Do not report this as clean, and do not treat `misconfigured`
+>      field. Do not report any of these as clean, and do not treat `misconfigured`
 >      (usually a missing `LITELLM_GATEWAY_BASE_URL`/`LITELLM_GATEWAY_API_KEY` in the
->      routine's own environment) as a lesser issue than `unreachable`.
+>      routine's own environment) or `unloadable` (a broken `models.yaml` in the
+>      checkout) as a lesser issue than `unreachable`. All three mean nobody looked.
 > 3. Post to the maintainer's Slack DM. Keep it terse — no preamble, no summary
 >    paragraph, no restating the request.
 

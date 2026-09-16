@@ -8,7 +8,13 @@ from collections.abc import Callable
 from pathlib import Path
 
 from model_registry.drift import DriftItem, GatewayUnreachableError, compare, fetch_served_models
-from model_registry.loader import DEFAULT_REGISTRY_PATH, Registry, RegistryError, load_registry
+from model_registry.loader import (
+    DEFAULT_REGISTRY_PATH,
+    Registry,
+    RegistryError,
+    check_reviews_current,
+    load_registry,
+)
 from model_registry.render import render_table, splice
 from model_registry.scan import Severity, has_file_header, scan_diff
 
@@ -59,6 +65,18 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _cmd_validate(registry: Registry) -> int:
+    """Run this repo's own gate: structure (already done by the load) plus governance.
+
+    `check_reviews_current` runs here and nowhere else. An overdue `review_by` means
+    this repo owes someone a re-review; it does not make the file unreadable, and
+    failing it inside `load_registry` would take every consumer repo's PR check and the
+    drift routine down with it on the day the dates lapse.
+    """
+    try:
+        check_reviews_current(registry)
+    except RegistryError as exc:
+        sys.stderr.write(f'registry invalid: {exc}\n')
+        return 1
     sys.stdout.write(f'{len(registry.models)} models, registry valid\n')
     return 0
 
@@ -85,7 +103,9 @@ def _cmd_render(registry: Registry, readme_path: Path, *, check: bool) -> int:
 def _cmd_scan(registry: Registry, diff_text: str, *, block_unknown: bool) -> int:
     if diff_text.strip() and not has_file_header(diff_text):
         sys.stderr.write('input does not look like a unified diff (no `+++ b/<path>` file header found); cannot scan\n')
-        return 1
+        # 2, not 1: "the tool could not read its input" must never be reported with the
+        # same code as "this PR introduces a banned model". Same contract as `drift`.
+        return 2
 
     severity = Severity.BLOCK if block_unknown else Severity.WARN
     findings = scan_diff(diff_text, registry, unknown_severity=severity)
@@ -108,11 +128,12 @@ def _write_drift_json(
 ) -> None:
     """Emit the drift result as a single JSON object on stdout.
 
-    `status` is `clean`, `drift`, `unreachable`, or `misconfigured` so a downstream
-    reporter (Task 9's cloud routine) can tell "checked and found nothing" apart from
-    "could not check at all" without inferring it from the exit code alone. Always
-    written, including for the two failure statuses, so `--json` never leaves stdout
-    empty or mixes in human-readable lines.
+    `status` is `clean`, `drift`, `unreachable`, `misconfigured`, or `unloadable` so a
+    downstream reporter (Task 9's cloud routine) can tell "checked and found nothing"
+    apart from "could not check at all" without inferring it from the exit code alone.
+    `unloadable` is the registry itself failing to load — the check never got as far as
+    the gateway. Always written, including for the three failure statuses, so `--json`
+    never leaves stdout empty or mixes in human-readable lines.
     """
     sys.stdout.write(
         json.dumps(
@@ -176,6 +197,31 @@ def _cmd_drift(registry: Registry, base_url: str, api_key: str, *, as_json: bool
     return 0 if report.is_clean else 1
 
 
+def _registry_load_failed(exc: RegistryError, args: argparse.Namespace) -> int:
+    """Report an unloadable registry with the exit code that subcommand's contract owes.
+
+    For `validate` and `render` an invalid registry *is* the finding, so 1 is right.
+    For `scan` and `drift` it means the check never ran, which is exactly what exit 2
+    exists to say: `docs/cloud-routine.md` documents exit 1 as "drift found — the
+    gateway was read successfully but disagrees with the registry", so returning 1 here
+    made the weekly routine report drift it had never looked for. `drift --json` also
+    emits its usual single line, because the routine is told to parse stdout on every
+    exit path and an empty stdout leaves it improvising.
+    """
+    sys.stderr.write(f'registry invalid: {exc}\n')
+    if args.command not in {'scan', 'drift'}:
+        return 1
+    if args.command == 'drift' and args.json:
+        _write_drift_json(
+            status='unloadable',
+            models_checked=0,
+            served_count=None,
+            items=(),
+            error=str(exc),
+        )
+    return 2
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -187,8 +233,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         registry = load_registry(registry_path)
     except RegistryError as exc:
-        sys.stderr.write(f'registry invalid: {exc}\n')
-        return 1
+        return _registry_load_failed(exc, args)
 
     dispatch: dict[str, Callable[[], int]] = {
         'validate': lambda: _cmd_validate(registry),

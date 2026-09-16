@@ -37,10 +37,25 @@ jobs:
    registry — add it.
 3. Flip to `block-unknown: 'true'` once the warnings stop.
 
+## What the scan's exit code means
+
+| Exit | Meaning |
+|---|---|
+| 0 | The diff was scanned. Nothing blocking. Warnings may still be printed on stderr. |
+| 1 | A policy finding: the PR adds a `deprecated` or `banned` model (or an unknown one under `block-unknown: 'true'`). |
+| 2 | The check did not run: stdin was not a unified diff, or `models.yaml` could not be loaded. **Not** a policy finding — fix the invocation. |
+
+A broken invocation must never be reported as "this PR introduces a banned model", so 2
+is deliberately distinct from 1. `model-registry drift` uses the same contract.
+
 ## Silencing a false positive
 
 Append `# model-registry: ignore <reason>` to the line. Use it for strings that
 merely look like model IDs, not to skip an approval.
+
+That comment and the built-in exclusion list (`*.ipynb`, `accuracy/`, `docs/`,
+`CHANGELOG*`, `*.lock`) are the only escape hatches. There is no per-repo config file in
+v1; `block-unknown` is the only per-repo knob.
 
 ## If this repo is private
 

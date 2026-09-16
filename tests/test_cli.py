@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 from pathlib import Path
 
 import pytest
@@ -111,11 +112,12 @@ def test_scan_rejects_input_with_no_recognizable_diff_header(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    """Exit 2, not 1: unreadable input is not the same answer as "a banned model"."""
     registry = tmp_path / 'models.yaml'
     registry.write_text(VALID_ENTRY)
     monkeypatch.setattr('sys.stdin', io.StringIO('not a unified diff\njust some noise\n'))
 
-    assert main(['scan', '--registry', str(registry)]) == 1
+    assert main(['scan', '--registry', str(registry)]) == 2
     assert 'diff' in capsys.readouterr().err.lower()
 
 
@@ -271,3 +273,91 @@ def test_drift_json_always_emits_pure_json_on_stdout(
     assert out.count('\n') == 1
     assert '"status": "unreachable"' in out
     assert '"served_count": null' in out
+
+
+LAPSED_ENTRY = VALID_ENTRY.replace('review_by: 2099-01-01', 'review_by: 2020-01-01')
+
+
+def test_lapsed_review_loads_for_consumers_but_fails_validate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A lapsed `review_by` is this repo's problem, not every consumer repo's.
+
+    Enforcing it on load meant that the day the seed dates pass, every adopting repo's
+    PR scan and the weekly drift routine would fail repo-wide on a governance signal.
+    `validate` — this repo's own CI gate — still fails, which is where the spec puts it.
+    """
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(LAPSED_ENTRY)
+    diff = "diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1,0 +1,1 @@\n+MODEL = 'gemini-2.5-flash'\n"
+    monkeypatch.setattr('sys.stdin', io.StringIO(diff))
+
+    assert main(['scan', '--registry', str(registry)]) == 0
+
+    monkeypatch.setattr('model_registry.cli.fetch_served_models', lambda *_a, **_k: frozenset({'gemini-2.5-flash'}))
+    assert main(['drift', '--registry', str(registry), '--base-url', 'https://gw.example', '--api-key', 'k']) == 0
+
+    capsys.readouterr()
+    assert main(['validate', '--registry', str(registry)]) == 1
+    assert 'review_by' in capsys.readouterr().err
+
+
+def test_unloadable_registry_exits_2_for_drift(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Exit 1 here would read as "drift found" per `docs/cloud-routine.md`."""
+    registry = tmp_path / 'models.yaml'
+    registry.write_text('models: {}\n')
+
+    assert main(['drift', '--registry', str(registry), '--base-url', 'https://gw.example', '--api-key', 'k']) == 2
+    assert 'registry invalid' in capsys.readouterr().err
+
+
+def test_unloadable_registry_drift_json_still_emits_one_line(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text('models: {}\n')
+
+    exit_code = main(
+        ['drift', '--registry', str(registry), '--base-url', 'https://gw.example', '--api-key', 'k', '--json'],
+    )
+    out = capsys.readouterr().out
+    assert exit_code == 2
+    assert out.count('\n') == 1
+    payload = json.loads(out)
+    assert payload['status'] == 'unloadable'
+    assert payload['clean'] is False
+    assert payload['served_count'] is None
+    assert payload['items'] == []
+    assert 'must contain a list' in payload['error']
+
+
+def test_unloadable_registry_exits_2_for_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr('sys.stdin', io.StringIO(''))
+
+    assert main(['scan', '--registry', str(tmp_path / 'missing.yaml')]) == 2
+    assert 'registry invalid' in capsys.readouterr().err
+
+
+def test_unloadable_registry_still_exits_1_for_validate(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """For `validate` the invalid registry *is* the finding, so 1 stays 1."""
+    registry = tmp_path / 'models.yaml'
+    registry.write_text('models: {}\n')
+
+    assert main(['validate', '--registry', str(registry)]) == 1
+    assert 'registry invalid' in capsys.readouterr().err
+
+
+def test_unloadable_registry_still_exits_1_for_render(tmp_path: Path) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text('models: {}\n')
+    readme = tmp_path / 'README.md'
+    readme.write_text('# x\n<!-- BEGIN MODELS -->\n<!-- END MODELS -->\n')
+
+    assert main(['render', '--registry', str(registry), '--readme', str(readme)]) == 1
