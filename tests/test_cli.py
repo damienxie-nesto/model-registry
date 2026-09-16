@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 import pytest
@@ -64,3 +65,17 @@ def test_render_check_passes_when_readme_is_current(tmp_path: Path) -> None:
 
     main(['render', '--registry', str(registry), '--readme', str(readme)])
     assert main(['render', '--registry', str(registry), '--readme', str(readme), '--check']) == 0
+
+
+def test_scan_blocks_on_banned_model(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY.replace('status: approved', 'status: banned'))
+    diff = "diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1,0 +1,1 @@\n+MODEL = 'gemini-2.5-flash'\n"
+    monkeypatch.setattr('sys.stdin', io.StringIO(diff))
+
+    assert main(['scan', '--registry', str(registry)]) == 1
+    assert 'banned' in capsys.readouterr().err

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from model_registry.loader import DEFAULT_REGISTRY_PATH, Registry, RegistryError, load_registry
 from model_registry.render import render_table, splice
+from model_registry.scan import Severity, scan_diff
 
 DEFAULT_README_PATH = Path(__file__).resolve().parent.parent / 'README.md'
 
@@ -29,6 +31,17 @@ def _build_parser() -> argparse.ArgumentParser:
         '--check',
         action='store_true',
         help='fail instead of writing when the README is out of date',
+    )
+
+    scan_parser = subparsers.add_parser(
+        'scan',
+        help='scan a unified diff on stdin for model IDs',
+        parents=[registry_parent],
+    )
+    scan_parser.add_argument(
+        '--block-unknown',
+        action='store_true',
+        help='treat unregistered model IDs as blocking rather than warnings',
     )
     return parser
 
@@ -57,6 +70,18 @@ def _cmd_render(registry: Registry, readme_path: Path, *, check: bool) -> int:
     return 0
 
 
+def _cmd_scan(registry: Registry, diff_text: str, *, block_unknown: bool) -> int:
+    severity = Severity.BLOCK if block_unknown else Severity.WARN
+    findings = scan_diff(diff_text, registry, unknown_severity=severity)
+    for finding in findings:
+        sys.stderr.write(f'{finding.format()}\n')
+    if any(finding.severity is Severity.BLOCK for finding in findings):
+        sys.stderr.write('\nSee the approved list: https://github.com/OWNER/model-registry\n')
+        return 1
+    sys.stdout.write(f'{len(findings)} warning(s), no blocking model usage\n')
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -67,13 +92,12 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f'registry invalid: {exc}\n')
         return 1
 
-    if args.command == 'validate':
-        return _cmd_validate(registry)
-
-    if args.command == 'render':
-        return _cmd_render(registry, args.readme, check=args.check)
-
-    return 0
+    dispatch: dict[str, Callable[[], int]] = {
+        'validate': lambda: _cmd_validate(registry),
+        'render': lambda: _cmd_render(registry, args.readme, check=args.check),
+        'scan': lambda: _cmd_scan(registry, sys.stdin.read(), block_unknown=args.block_unknown),
+    }
+    return dispatch[args.command]()
 
 
 if __name__ == '__main__':
