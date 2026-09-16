@@ -7,7 +7,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from model_registry.drift import GatewayUnreachableError, compare, fetch_served_models
+from model_registry.drift import DriftItem, GatewayUnreachableError, compare, fetch_served_models
 from model_registry.loader import DEFAULT_REGISTRY_PATH, Registry, RegistryError, load_registry
 from model_registry.render import render_table, splice
 from model_registry.scan import Severity, has_file_header, scan_diff
@@ -98,34 +98,80 @@ def _cmd_scan(registry: Registry, diff_text: str, *, block_unknown: bool) -> int
     return 0
 
 
+def _write_drift_json(
+    *,
+    status: str,
+    models_checked: int,
+    served_count: int | None,
+    items: tuple[DriftItem, ...],
+    error: str | None,
+) -> None:
+    """Emit the drift result as a single JSON object on stdout.
+
+    `status` is `clean`, `drift`, `unreachable`, or `misconfigured` so a downstream
+    reporter (Task 9's cloud routine) can tell "checked and found nothing" apart from
+    "could not check at all" without inferring it from the exit code alone. Always
+    written, including for the two failure statuses, so `--json` never leaves stdout
+    empty or mixes in human-readable lines.
+    """
+    sys.stdout.write(
+        json.dumps(
+            {
+                'status': status,
+                'clean': status == 'clean',
+                'models_checked': models_checked,
+                'served_count': served_count,
+                'items': [
+                    {'kind': item.kind.value, 'model_id': item.model_id, 'detail': item.detail} for item in items
+                ],
+                'error': error,
+            },
+        )
+        + '\n',
+    )
+
+
 def _cmd_drift(registry: Registry, base_url: str, api_key: str, *, as_json: bool) -> int:
     if not base_url or not api_key:
-        sys.stderr.write('drift needs LITELLM_GATEWAY_BASE_URL and LITELLM_GATEWAY_API_KEY\n')
-        return 1
+        message = 'drift needs LITELLM_GATEWAY_BASE_URL and LITELLM_GATEWAY_API_KEY'
+        sys.stderr.write(f'{message}\n')
+        if as_json:
+            _write_drift_json(
+                status='misconfigured',
+                models_checked=len(registry.models),
+                served_count=None,
+                items=(),
+                error=message,
+            )
+        return 2
+
     try:
         served = fetch_served_models(base_url, api_key)
     except GatewayUnreachableError as exc:
-        sys.stderr.write(f'drift check failed: {exc}\n')
+        message = str(exc)
+        sys.stderr.write(f'drift check failed: {message}\n')
+        if as_json:
+            _write_drift_json(
+                status='unreachable',
+                models_checked=len(registry.models),
+                served_count=None,
+                items=(),
+                error=message,
+            )
         return 2
 
     report = compare(served, registry)
     if as_json:
-        sys.stdout.write(
-            json.dumps(
-                {
-                    'models_checked': report.models_checked,
-                    'clean': report.is_clean,
-                    'items': [
-                        {'kind': item.kind.value, 'model_id': item.model_id, 'detail': item.detail}
-                        for item in report.items
-                    ],
-                },
-            )
-            + '\n',
+        _write_drift_json(
+            status='clean' if report.is_clean else 'drift',
+            models_checked=report.models_checked,
+            served_count=len(served),
+            items=report.items,
+            error=None,
         )
     else:
         for item in report.items:
-            sys.stdout.write(f'{item.kind.value}: {item.model_id} — {item.detail}\n')
+            sys.stdout.write(f'{item.kind.value}: {item.model_id} - {item.detail}\n')
         sys.stdout.write(f'{report.models_checked} models checked, {len(report.items)} drift item(s)\n')
     return 0 if report.is_clean else 1
 

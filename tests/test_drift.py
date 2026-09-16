@@ -95,3 +95,26 @@ def test_fetch_raises_on_malformed_payload() -> None:
     client = httpx.Client(transport=httpx.MockTransport(lambda _request: httpx.Response(200, json={'oops': 1})))
     with pytest.raises(GatewayUnreachableError, match='unexpected'):
         fetch_served_models('https://gw.example', 'key-123', client=client)
+
+
+def test_fetch_raises_when_an_entry_is_missing_model_name() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={'data': [{'model_name': 'alpha'}, {'not_model_name': 'rogue'}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with pytest.raises(GatewayUnreachableError, match='unexpected entry'):
+        fetch_served_models('https://gw.example', 'key-123', client=client)
+
+
+def test_fetch_raises_when_gateway_serves_nothing() -> None:
+    client = httpx.Client(transport=httpx.MockTransport(lambda _request: httpx.Response(200, json={'data': []})))
+    with pytest.raises(GatewayUnreachableError, match='no models'):
+        fetch_served_models('https://gw.example', 'key-123', client=client)
+
+
+def test_fetch_raises_on_undecodable_body() -> None:
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200, content=b'\xff\xfe\x00\x01')),
+    )
+    with pytest.raises(GatewayUnreachableError):
+        fetch_served_models('https://gw.example', 'key-123', client=client)

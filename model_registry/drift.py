@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -45,10 +44,13 @@ class DriftReport:
 def fetch_served_models(base_url: str, api_key: str, client: httpx.Client | None = None) -> frozenset[str]:
     """Read the model names the LiteLLM gateway currently serves.
 
-    Raises `GatewayUnreachableError` on any failure to obtain a usable payload —
-    transport errors, non-2xx responses, a body that is not valid JSON, and JSON
-    that is not shaped like `{"data": [{"model_name": ...}, ...]}` — so that "could
-    not tell" is never silently reported as "no drift".
+    Raises `GatewayUnreachableError` on any failure to obtain a usable, informative
+    payload: transport errors, non-2xx responses, a body that cannot be decoded as
+    JSON (including a non-UTF-8 body, which surfaces as a `ValueError` subclass), JSON
+    that is not shaped like `{"data": [{"model_name": ...}, ...]}`, an entry in `data`
+    that is missing `model_name`, and an empty `data` list (a gateway serving nothing
+    is misconfigured, not compliant). "Could not tell" must never be silently reported
+    as "no drift".
     """
     owns_client = client is None
     active = client or httpx.Client(timeout=_TIMEOUT_SECONDS)
@@ -59,7 +61,7 @@ def fetch_served_models(base_url: str, api_key: str, client: httpx.Client | None
         )
         response.raise_for_status()
         payload = response.json()
-    except (httpx.HTTPError, json.JSONDecodeError) as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         raise GatewayUnreachableError(f'could not read {base_url}/model/info: {exc}') from exc
     finally:
         if owns_client:
@@ -67,9 +69,17 @@ def fetch_served_models(base_url: str, api_key: str, client: httpx.Client | None
 
     data = payload.get('data') if isinstance(payload, dict) else None
     if not isinstance(data, list):
-        raise GatewayUnreachableError(f'unexpected /model/info payload from {base_url}')
+        raise GatewayUnreachableError(f'unexpected /model/info payload from {base_url}: not a list')
+    if not data:
+        raise GatewayUnreachableError(f'{base_url} reported serving no models at all')
 
-    return frozenset(str(item['model_name']) for item in data if isinstance(item, dict) and 'model_name' in item)
+    served: set[str] = set()
+    for item in data:
+        if not isinstance(item, dict) or 'model_name' not in item:
+            raise GatewayUnreachableError(f'unexpected entry in /model/info payload from {base_url}: {item!r}')
+        served.add(str(item['model_name']))
+
+    return frozenset(served)
 
 
 def compare(served: frozenset[str], registry: Registry) -> DriftReport:

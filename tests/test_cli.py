@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from model_registry.cli import main
+from model_registry.drift import GatewayUnreachableError
 
 VALID_ENTRY = """
 - id: gemini-2.5-flash
@@ -189,3 +190,84 @@ def test_registry_flag_after_subcommand_works_for_all_commands(
 
     monkeypatch.setattr('sys.stdin', io.StringIO(''))
     assert main(['scan', '--registry', str(registry)]) == 0
+
+
+def test_drift_missing_config_exits_2_not_1(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY)
+    monkeypatch.delenv('LITELLM_GATEWAY_BASE_URL', raising=False)
+    monkeypatch.delenv('LITELLM_GATEWAY_API_KEY', raising=False)
+
+    assert main(['drift', '--registry', str(registry)]) == 2
+    assert 'LITELLM_GATEWAY_BASE_URL' in capsys.readouterr().err
+
+
+def test_drift_clean_exits_0(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY)
+    monkeypatch.setattr('model_registry.cli.fetch_served_models', lambda *_a, **_k: frozenset({'gemini-2.5-flash'}))
+
+    assert main(['drift', '--registry', str(registry), '--base-url', 'https://gw.example', '--api-key', 'k']) == 0
+
+
+def test_drift_found_exits_1(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY)
+    monkeypatch.setattr(
+        'model_registry.cli.fetch_served_models',
+        lambda *_a, **_k: frozenset({'gemini-2.5-flash', 'rogue-model'}),
+    )
+
+    assert main(['drift', '--registry', str(registry), '--base-url', 'https://gw.example', '--api-key', 'k']) == 1
+    assert 'rogue-model' in capsys.readouterr().out
+
+
+def test_drift_unreachable_exits_2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY)
+
+    def _raise(*_args: object, **_kwargs: object) -> frozenset[str]:
+        raise GatewayUnreachableError('gateway is on fire')
+
+    monkeypatch.setattr('model_registry.cli.fetch_served_models', _raise)
+
+    assert main(['drift', '--registry', str(registry), '--base-url', 'https://gw.example', '--api-key', 'k']) == 2
+    assert 'gateway is on fire' in capsys.readouterr().err
+
+
+def test_drift_json_always_emits_pure_json_on_stdout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY)
+
+    def _raise(*_args: object, **_kwargs: object) -> frozenset[str]:
+        raise GatewayUnreachableError('gateway is on fire')
+
+    monkeypatch.setattr('model_registry.cli.fetch_served_models', _raise)
+
+    exit_code = main(
+        ['drift', '--registry', str(registry), '--base-url', 'https://gw.example', '--api-key', 'k', '--json'],
+    )
+    out = capsys.readouterr().out
+    assert exit_code == 2
+    assert out.count('\n') == 1
+    assert '"status": "unreachable"' in out
+    assert '"served_count": null' in out
