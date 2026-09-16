@@ -142,6 +142,39 @@ def test_registry_flag_before_subcommand_is_honoured(
     assert 'gemini-2.5-flash' in capsys.readouterr().err
 
 
+def test_registry_flag_before_subcommand_is_honoured_for_render(tmp_path: Path) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY.replace('id: gemini-2.5-flash', 'id: zzz-pre-subcommand-registry-flag'))
+    readme = tmp_path / 'README.md'
+    readme.write_text('# x\n<!-- BEGIN MODELS -->\n<!-- END MODELS -->\n')
+
+    assert main(['--registry', str(registry), 'render', '--readme', str(readme)]) == 0
+    assert '`zzz-pre-subcommand-registry-flag`' in readme.read_text()
+
+
+def test_registry_flag_before_subcommand_is_honoured_for_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY.replace('status: approved', 'status: banned'))
+    diff = "diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1,0 +1,1 @@\n+MODEL = 'gemini-2.5-flash'\n"
+    monkeypatch.setattr('sys.stdin', io.StringIO(diff))
+
+    assert main(['--registry', str(registry), 'scan']) == 1
+    assert 'banned' in capsys.readouterr().err
+
+
+def test_registry_flag_precedence_prefers_the_post_subcommand_value(tmp_path: Path) -> None:
+    before_registry = tmp_path / 'before.yaml'
+    before_registry.write_text(VALID_ENTRY.replace('residency: canada', 'residency: mars'))
+    after_registry = tmp_path / 'after.yaml'
+    after_registry.write_text(VALID_ENTRY)
+
+    assert main(['--registry', str(before_registry), 'validate', '--registry', str(after_registry)]) == 0
+
+
 def test_registry_flag_after_subcommand_works_for_all_commands(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
