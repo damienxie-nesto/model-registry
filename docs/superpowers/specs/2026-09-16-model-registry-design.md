@@ -110,6 +110,11 @@ Loads `models.yaml`, enforces the schema, derives tiers, fails on: unknown field
 duplicate IDs, `deprecated` without a `replacement`, `review_by` in the past, a
 `bank`-serving status the facts do not support. Runs in the registry's own CI.
 
+The `review_by` rule runs **here only**, not on every load: a lapsed review is a
+governance signal about this repo, and enforcing it inside the loader would fail every
+consumer repo's PR check and the drift routine on the day the dates pass. The structural
+rules do run on every load, which is what "consumers always read a valid file" means.
+
 ### 2. README renderer (`make render`)
 Regenerates the table in `README.md` between `<!-- BEGIN MODELS -->` markers. CI fails if
 the committed README differs from the rendered output, so the browsable view can never
@@ -126,7 +131,12 @@ The scanner is heuristic and this is its main design risk. Mitigations:
 - Default excludes: `*.ipynb`, `accuracy/`, `docs/`, `CHANGELOG*` — evaluation notebooks
   legitimately name many models, including rejected ones.
 - Per-line escape hatch: `# model-registry: ignore <reason>`.
-- Configurable via `.model-registry.yml` in the consumer repo.
+
+Those two — the built-in exclusion list and the per-line ignore comment — are the only
+escape hatches in v1. There is **no** `.model-registry.yml` per-repo config file; an
+earlier draft of this section promised one and nothing was ever built to read it. The
+only per-repo knob is the action's `block-unknown` input, which is what the documented
+rollout (warn first, then block) actually turns.
 
 **Known limit:** the scanner verifies a model is approved for *some* tier. It cannot tell
 whether a given call site serves bank tenants — static analysis does not know the tenant.
@@ -134,10 +144,11 @@ Only the runtime guard (Future) closes that gap.
 
 ### 4. Gateway drift check (weekly)
 Calls `{LITELLM_GATEWAY_BASE_URL}/model/info` and compares served models against the
-registry, reporting: served-but-unapproved, approved-but-not-served, and metadata
-mismatches. Run by a Claude Code cloud routine following the existing DD-triage pattern;
-the routine invokes `model-registry drift --json` (deterministic, exit-coded) and only
-formats the Slack message.
+registry, reporting: served-but-unapproved and approved-but-not-served. Metadata
+mismatches are **not** part of v1 (see Future). Run by a Claude Code cloud routine
+following the existing DD-triage pattern; the routine invokes
+`model-registry drift --json` (deterministic, exit-coded) and only formats the Slack
+message.
 
 **It posts even when clean** — `14 models · 0 drift` — because a check that is silent
 when healthy is indistinguishable from a check that is broken. Terse format per existing
@@ -164,8 +175,8 @@ PR edits models.yaml -> CI: validate + render check -> merge
 
 - Invalid `models.yaml` fails the registry's own CI; consumers always read a valid file.
 - Consumer scan failures are **blocking** for `banned`/`deprecated`, **warning** for
-  unknown IDs during a grace period, configurable per repo, so adoption doesn't
-  immediately break unrelated PRs.
+  unknown IDs during a grace period, configurable per repo through the action's
+  `block-unknown` input, so adoption doesn't immediately break unrelated PRs.
 - Gateway unreachable during drift check: report explicitly as `drift check failed`, never
   as clean. Distinguishing "no drift" from "could not tell" is a correctness requirement.
 
@@ -192,6 +203,11 @@ PR edits models.yaml -> CI: validate + render check -> merge
   request context (500+ usages, `TenantResolutionError`, per-tenant config), so a
   tenant→tier map plus a check in `llm_kit.client` would fail closed on a standard-tier
   model serving a bank tenant. This is the only thing that closes the scanner's tenant gap.
+- **Drift on metadata, not just membership.** v1 compares the served set against the
+  approved set and nothing else; it does not notice when a model the gateway serves is
+  wired differently from the facts recorded about it. Doing that needs gateway fields
+  (`api_base`, model wiring) we have not yet observed in a real `/model/info` payload,
+  so the comparison would be guesswork today.
 - **Generate the gateway config.** Compile `models.yaml` into the LiteLLM `config.yaml` so
   an unapproved model is not merely flagged but not deployed. Makes drift structurally
   impossible. The `gateway:` block exists in the schema from day one so this stays cheap.
