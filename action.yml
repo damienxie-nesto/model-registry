@@ -1,0 +1,48 @@
+# NOTE: the `OWNER` in `repository: OWNER/model-registry` below is a deliberate
+# placeholder. This repo's GitHub owner has not been decided yet. Before this
+# action can be referenced by any consumer repo, replace every `OWNER` in this
+# file (and in docs/adopting.md) with the real GitHub owner/org.
+name: Model Registry Check
+description: Fail a PR that introduces a model ID that is not approved in the Nesto model registry.
+
+inputs:
+  block-unknown:
+    description: Treat unregistered model IDs as blocking rather than warnings.
+    required: false
+    default: 'false'
+  registry-ref:
+    description: Git ref of the model-registry repo to check against.
+    required: false
+    default: main
+
+runs:
+  using: composite
+  steps:
+    - name: Check out the registry
+      uses: actions/checkout@v4
+      with:
+        repository: OWNER/model-registry
+        ref: ${{ inputs.registry-ref }}
+        path: .model-registry
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install the registry CLI
+      shell: bash
+      run: pip install ./.model-registry
+
+    - name: Scan the pull request diff
+      shell: bash
+      env:
+        BLOCK_UNKNOWN: ${{ inputs.block-unknown }}
+      run: |
+        set -euo pipefail
+        BASE="${{ github.event.pull_request.base.sha }}"
+        HEAD="${{ github.event.pull_request.head.sha }}"
+        FLAGS=""
+        if [ "$BLOCK_UNKNOWN" = "true" ]; then FLAGS="--block-unknown"; fi
+        git diff "$BASE" "$HEAD" \
+          | model-registry scan --registry .model-registry/models.yaml $FLAGS
