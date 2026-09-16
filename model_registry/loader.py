@@ -51,6 +51,16 @@ def load_registry(path: Path = DEFAULT_REGISTRY_PATH) -> Registry:
         raw = yaml.safe_load(path.read_text())
     except FileNotFoundError as exc:
         raise RegistryError(f'registry file not found: {path}') from exc
+    except UnicodeDecodeError as exc:
+        raise RegistryError(f'{path} is not valid UTF-8 text: {exc}') from exc
+    except OSError as exc:
+        # A directory, an unreadable file, a dead symlink, a vanished mount. Every one
+        # of these means the registry could not be read, which is exactly what
+        # RegistryError says — and RegistryError is what routes `scan` and `drift` to
+        # exit 2. Letting the OSError escape instead gave the CLI's generic exit 1 with
+        # no JSON line, so the weekly routine read "drift found, gateway read
+        # successfully" for a check that never opened the file.
+        raise RegistryError(f'{path} could not be read: {exc.strerror or exc}') from exc
     except yaml.YAMLError as exc:
         raise RegistryError(f'{path} is not valid YAML: {exc}') from exc
 
@@ -100,11 +110,25 @@ def check_reviews_current(registry: Registry, today: date | None = None) -> None
 
 
 def _check_unique_ids(entries: list[ModelEntry]) -> None:
-    seen: set[str] = set()
+    """Reject IDs that collide, including on case alone.
+
+    The scanner resolves through a lower-cased index (`scan._build_id_index`), so two
+    entries differing only in case would silently conflate there — last one wins, and
+    the losing entry's status stops being enforced at the one point where enforcement
+    happens. Case-insensitive uniqueness keeps that collision impossible rather than
+    invisible.
+    """
+    seen: dict[str, str] = {}
     for entry in entries:
-        if entry.id in seen:
-            raise RegistryError(f'duplicate model id: {entry.id}')
-        seen.add(entry.id)
+        previous = seen.get(entry.id.lower())
+        if previous is not None:
+            detail = (
+                f'duplicate model id: {entry.id}'
+                if previous == entry.id
+                else f'model ids {previous!r} and {entry.id!r} differ only in case; IDs are matched case-insensitively'
+            )
+            raise RegistryError(detail)
+        seen[entry.id.lower()] = entry.id
 
 
 def _check_replacements_resolve(entries: list[ModelEntry]) -> None:

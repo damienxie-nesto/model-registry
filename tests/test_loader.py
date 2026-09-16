@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from datetime import date
 from pathlib import Path
@@ -126,3 +127,46 @@ def test_non_list_top_level_is_rejected(tmp_path: Path) -> None:
 def test_malformed_yaml_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(RegistryError, match=re.escape('not valid YAML')):
         load_registry(_write(tmp_path, '- id: [unclosed'))
+
+
+def test_non_utf8_file_is_rejected_as_a_registry_error(tmp_path: Path) -> None:
+    """A read failure must arrive as RegistryError, not as a bare OS exception.
+
+    Only RegistryError routes `scan`/`drift` to exit 2; anything else escaped to the
+    CLI's generic exit 1 with no JSON line — "drift found" for a file never read.
+    """
+    path = tmp_path / 'models.yaml'
+    path.write_bytes(b'\xff\xfe- id: gemini-2.5-flash\n')
+    with pytest.raises(RegistryError, match='UTF-8'):
+        load_registry(path)
+
+
+def test_directory_in_place_of_the_registry_is_rejected(tmp_path: Path) -> None:
+    directory = tmp_path / 'models.yaml'
+    directory.mkdir()
+    with pytest.raises(RegistryError, match=re.escape('could not be read')):
+        load_registry(directory)
+
+
+def test_unreadable_file_is_rejected(tmp_path: Path) -> None:
+    path = _write(tmp_path, VALID_ENTRY)
+    path.chmod(0o000)
+    try:
+        if os.access(path, os.R_OK):  # root, or a filesystem that ignores the mode bits
+            pytest.skip('this filesystem or user ignores the permission bits')
+        with pytest.raises(RegistryError, match=re.escape('could not be read')):
+            load_registry(path)
+    finally:
+        path.chmod(0o644)
+
+
+def test_ids_differing_only_in_case_are_rejected(tmp_path: Path) -> None:
+    """The scanner matches IDs case-insensitively, so a case collision must not load."""
+    content = VALID_ENTRY + VALID_ENTRY.replace('id: gemini-2.5-flash', 'id: Gemini-2.5-Flash')
+    with pytest.raises(RegistryError, match=re.escape('differ only in case')):
+        load_registry(_write(tmp_path, content))
+
+
+def test_exact_duplicate_ids_keep_their_own_message(tmp_path: Path) -> None:
+    with pytest.raises(RegistryError, match=re.escape('duplicate model id: gemini-2.5-flash')):
+        load_registry(_write(tmp_path, VALID_ENTRY + VALID_ENTRY))

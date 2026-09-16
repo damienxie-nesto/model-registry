@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -357,6 +358,87 @@ def test_unloadable_registry_still_exits_1_for_validate(tmp_path: Path, capsys: 
 def test_unloadable_registry_still_exits_1_for_render(tmp_path: Path) -> None:
     registry = tmp_path / 'models.yaml'
     registry.write_text('models: {}\n')
+    readme = tmp_path / 'README.md'
+    readme.write_text('# x\n<!-- BEGIN MODELS -->\n<!-- END MODELS -->\n')
+
+    assert main(['render', '--registry', str(registry), '--readme', str(readme)]) == 1
+
+
+def _unreadable_registry(tmp_path: Path) -> Path:
+    """A registry that exists but cannot be read: a directory, which is portable."""
+    directory = tmp_path / 'models.yaml'
+    directory.mkdir()
+    return directory
+
+
+def _non_utf8_registry(tmp_path: Path) -> Path:
+    path = tmp_path / 'models.yaml'
+    path.write_bytes(b'\xff\xfe- id: gemini-2.5-flash\n')
+    return path
+
+
+@pytest.mark.parametrize('make_registry', [_unreadable_registry, _non_utf8_registry])
+def test_unreadable_registry_exits_2_for_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    make_registry: Callable[[Path], Path],
+) -> None:
+    monkeypatch.setattr('sys.stdin', io.StringIO(''))
+
+    assert main(['scan', '--registry', str(make_registry(tmp_path))]) == 2
+    assert 'registry invalid' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('make_registry', [_unreadable_registry, _non_utf8_registry])
+def test_unreadable_registry_exits_2_for_drift(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    make_registry: Callable[[Path], Path],
+) -> None:
+    registry = make_registry(tmp_path)
+
+    assert main(['drift', '--registry', str(registry), '--base-url', 'https://gw.example', '--api-key', 'k']) == 2
+    assert 'registry invalid' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('make_registry', [_unreadable_registry, _non_utf8_registry])
+def test_unreadable_registry_drift_json_still_emits_one_line(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    make_registry: Callable[[Path], Path],
+) -> None:
+    """The routine parses stdout on every exit path; an empty stdout leaves it improvising."""
+    registry = make_registry(tmp_path)
+
+    exit_code = main(
+        ['drift', '--registry', str(registry), '--base-url', 'https://gw.example', '--api-key', 'k', '--json'],
+    )
+    out = capsys.readouterr().out
+    assert exit_code == 2
+    assert out.count('\n') == 1
+    payload = json.loads(out)
+    assert payload['status'] == 'unloadable'
+    assert payload['clean'] is False
+    assert payload['error']
+
+
+@pytest.mark.parametrize('make_registry', [_unreadable_registry, _non_utf8_registry])
+def test_unreadable_registry_still_exits_1_for_validate(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    make_registry: Callable[[Path], Path],
+) -> None:
+    assert main(['validate', '--registry', str(make_registry(tmp_path))]) == 1
+    assert 'registry invalid' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('make_registry', [_unreadable_registry, _non_utf8_registry])
+def test_unreadable_registry_still_exits_1_for_render(
+    tmp_path: Path,
+    make_registry: Callable[[Path], Path],
+) -> None:
+    registry = make_registry(tmp_path)
     readme = tmp_path / 'README.md'
     readme.write_text('# x\n<!-- BEGIN MODELS -->\n<!-- END MODELS -->\n')
 
