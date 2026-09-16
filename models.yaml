@@ -1,0 +1,160 @@
+# Source of truth for AI models approved for use at Nesto.
+#
+# Edit via pull request only. Tiers are NOT set here: they are derived from these
+# facts by model_registry/policy.py. To approve a model for bank clients, record
+# facts that justify it (Canadian residency or self-hosted open weights, and no
+# training on customer data) and set status: approved.
+#
+# SEED DATA — every entry below is `trial` because its residency and retention
+# terms have not yet been verified by a human. No entry is bank-eligible until
+# someone confirms the facts and flips status to `approved` in a reviewed PR.
+
+- id: gemini-2.5-pro
+  display_name: Gemini 2.5 Pro
+  provider: google
+  hosting: vertex
+  region: unverified
+  residency: multi
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr, general]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed — no approval yet
+  review_by: 2026-12-16
+  notes: In use in documents-extractor. Region and DPA terms UNVERIFIED.
+
+- id: gemini-2.5-flash
+  display_name: Gemini 2.5 Flash
+  provider: google
+  hosting: vertex
+  region: unverified
+  residency: multi
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed — no approval yet
+  review_by: 2026-12-16
+  notes: Region and DPA terms UNVERIFIED.
+
+- id: gemini-3.5-flash
+  display_name: Gemini 3.5 Flash
+  provider: google
+  hosting: vertex
+  region: unverified
+  residency: multi
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed — no approval yet
+  review_by: 2026-12-16
+  notes: Region and DPA terms UNVERIFIED.
+
+- id: gemini-3.5-flash-lite
+  display_name: Gemini 3.5 Flash Lite
+  provider: google
+  hosting: vertex
+  region: unverified
+  residency: multi
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed — no approval yet
+  review_by: 2026-12-16
+  notes: Region and DPA terms UNVERIFIED.
+
+- id: gemini-3.6-flash
+  display_name: Gemini 3.6 Flash
+  provider: google
+  hosting: vertex
+  region: unverified
+  residency: multi
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed — no approval yet
+  review_by: 2026-12-16
+  notes: Region and DPA terms UNVERIFIED.
+
+- id: gemini-3.1-pro-preview
+  display_name: Gemini 3.1 Pro (preview)
+  provider: google
+  hosting: vertex
+  region: unverified
+  residency: multi
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr, general]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed — no approval yet
+  review_by: 2026-12-16
+  notes: Preview model. Region and DPA terms UNVERIFIED.
+
+- id: gemini-3.1-flash-lite
+  display_name: Gemini 3.1 Flash Lite
+  provider: google
+  hosting: vertex
+  region: unverified
+  residency: multi
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed — no approval yet
+  review_by: 2026-12-16
+  notes: Region and DPA terms UNVERIFIED.
+
+- id: gpt-4.1
+  display_name: GPT-4.1
+  provider: openai
+  hosting: saas
+  region: us
+  residency: us
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [general]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed — no approval yet
+  review_by: 2026-12-16
+  notes: US-hosted; standard tier only by policy. Retention terms UNVERIFIED.
+
+- id: gpt-4o
+  display_name: GPT-4o
+  provider: openai
+  hosting: saas
+  region: us
+  residency: us
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [general]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed — no approval yet
+  review_by: 2026-12-16
+  notes: US-hosted; standard tier only by policy. Retention terms UNVERIFIED.
+
+- id: gpt-4o-mini
+  display_name: GPT-4o mini
+  provider: openai
+  hosting: saas
+  region: us
+  residency: us
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [general]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed — no approval yet
+  review_by: 2026-12-16
+  notes: US-hosted; standard tier only by policy. Retention terms UNVERIFIED.
