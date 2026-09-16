@@ -1,0 +1,20 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # `make check` never calls `uv sync` itself (only `make setup`/`update` do),
+      # and it relies on the Makefile's own `export UV_LOCKED := 1` to make `uv sync`
+      # fail rather than silently rewrite the committed uv.lock. This step runs
+      # outside `make`, so that guarantee has to be set explicitly here too.
+      UV_LOCKED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --group dev
+      # `make check` already runs `validate` (see the Makefile's `check` target), so
+      # there is no separate validate step here.
+      - run: make check
+      - run: uv run model-registry render --check
