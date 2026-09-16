@@ -75,3 +75,13 @@ def test_invalid_entry_reports_the_model_id(tmp_path: Path) -> None:
 def test_ids_returns_every_model(tmp_path: Path) -> None:
     registry = load_registry(_write(tmp_path, VALID_ENTRY), today=date(2026, 9, 16))
     assert registry.ids() == frozenset({'gemini-2.5-flash'})
+
+
+def test_non_list_top_level_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(RegistryError, match=re.escape('must contain a list')):
+        load_registry(_write(tmp_path, 'models: []'), today=date(2026, 9, 16))
+
+
+def test_malformed_yaml_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(RegistryError, match=re.escape('not valid YAML')):
+        load_registry(_write(tmp_path, '- id: [unclosed'), today=date(2026, 9, 16))
