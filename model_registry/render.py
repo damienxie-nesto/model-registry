@@ -11,6 +11,22 @@ _HEADER = (
 )
 
 
+def _cell(value: str) -> str:
+    """Escape a value so it cannot break out of its table cell.
+
+    The README table is what `README.md` tells developers to trust when they ask "may
+    I use this model", and `id`, `region` and `display_name` are unconstrained strings
+    copied from vendor documentation. An unescaped `|` forges extra columns, so an
+    entry that is really `trial` / `standard` can render a row reading
+    `approved | bank`. A generated artifact that can misrepresent its own source is
+    worse than a hand-maintained one, because nobody audits it.
+
+    Backslashes are escaped first so an existing `\\` cannot consume the escape we add;
+    newlines (which would end the row outright) are folded to spaces.
+    """
+    return value.replace('\\', '\\\\').replace('|', '\\|').replace('\r\n', ' ').replace('\n', ' ').replace('\r', ' ')
+
+
 def render_table(registry: Registry) -> str:
     """Render the registry as a markdown table. Generated — never hand-edited."""
     rows = [_HEADER]
@@ -19,9 +35,9 @@ def render_table(registry: Registry) -> str:
         tiers = ', '.join(sorted(model.tiers)) if model.tiers else '—'
         use_cases = ', '.join(sorted(use_case.value for use_case in entry.use_cases))
         rows.append(
-            f'| `{entry.id}` | {use_cases} | {entry.status.value} | {tiers} | '
-            f'{entry.hosting.value} | {entry.region} | {entry.residency.value} | '
-            f'{entry.review_by.isoformat()} |',
+            f'| `{_cell(entry.id)}` | {_cell(use_cases)} | {_cell(entry.status.value)} | {_cell(tiers)} | '
+            f'{_cell(entry.hosting.value)} | {_cell(entry.region)} | {_cell(entry.residency.value)} | '
+            f'{_cell(entry.review_by.isoformat())} |',
         )
     return '\n'.join(rows)
 

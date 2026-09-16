@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date
 
 import pytest
@@ -64,3 +65,28 @@ def test_splice_is_idempotent() -> None:
 def test_splice_without_markers_raises() -> None:
     with pytest.raises(ValueError, match='marker'):
         splice('no markers here', 'table')
+
+
+def test_pipe_in_a_cell_cannot_forge_extra_columns() -> None:
+    """An unescaped `|` lets a `trial`/`standard` entry render a row reading `approved | bank`.
+
+    `id` and `region` are unconstrained strings, and `README.md` tells developers the
+    table is the answer to "may I use this model" — so a forged row is the answer they
+    act on.
+    """
+    forged = 'evil` | general | approved | bank | saas | us | us | 2030-01-01 |x`'
+    registry = Registry(models=(_resolved(forged, frozenset({Tier.STANDARD})),))
+    row = render_table(registry).splitlines()[-1]
+    cells = [cell.strip() for cell in re.split(r'(?<!\\)\|', row)[1:-1]]
+
+    assert len(cells) == 8
+    assert cells[2] == 'approved'  # the real status column, not the forged one
+    assert cells[3] == 'standard'  # the tiers column; the forged row claimed `bank`
+    assert r'\|' in cells[0]
+
+
+def test_escaping_leaves_ordinary_cells_untouched() -> None:
+    registry = Registry(models=(_resolved('gemini-3.5-flash', frozenset({Tier.STANDARD})),))
+    assert render_table(registry).splitlines()[-1] == (
+        '| `gemini-3.5-flash` | ocr | approved | standard | vertex | northamerica-northeast1 | canada | 2027-09-16 |'
+    )
