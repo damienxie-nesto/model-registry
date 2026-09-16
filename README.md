@@ -14,6 +14,15 @@ the PR check, the weekly gateway drift report — is generated from it.
 
 Tiers are **derived**, not declared: see `model_registry/policy.py` for the rules.
 
+## Checks
+
+| Check | Runs | On failure |
+|---|---|---|
+| `make validate` | this repo's CI, every PR | the registry is malformed — merge blocked |
+| `model-registry render --check` | this repo's CI, every PR | the README table is stale — run `make render` |
+| `model-registry scan` | consumer repos, every PR | a PR introduces a deprecated, banned, or unknown model |
+| `model-registry drift` | weekly cloud routine | the gateway serves something the registry does not approve |
+
 ## Approved models
 
 <!-- BEGIN MODELS -->
