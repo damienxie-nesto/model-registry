@@ -41,7 +41,7 @@ def test_self_hosted_open_weights_serves_bank_regardless_of_residency_label() ->
     tiers = derive_tiers(
         _entry(hosting=Hosting.SELF_HOSTED, open_weights=True, residency=Residency.MULTI),
     )
-    assert Tier.BANK in tiers
+    assert tiers == frozenset({Tier.BANK, Tier.STANDARD})
 
 
 def test_training_on_customer_data_disqualifies_bank_tier() -> None:
@@ -51,6 +51,16 @@ def test_training_on_customer_data_disqualifies_bank_tier() -> None:
 
 def test_trial_status_never_reaches_bank_tier() -> None:
     tiers = derive_tiers(_entry(status=Status.TRIAL))
+    assert tiers == frozenset({Tier.STANDARD})
+
+
+def test_open_weights_requires_self_hosted_for_bank() -> None:
+    tiers = derive_tiers(_entry(open_weights=True, hosting=Hosting.SAAS, residency=Residency.US))
+    assert tiers == frozenset({Tier.STANDARD})
+
+
+def test_self_hosted_requires_open_weights_for_bank() -> None:
+    tiers = derive_tiers(_entry(open_weights=False, hosting=Hosting.SELF_HOSTED, residency=Residency.US))
     assert tiers == frozenset({Tier.STANDARD})
 
 
