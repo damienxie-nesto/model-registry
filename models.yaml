@@ -5,156 +5,274 @@
 # facts that justify it (Canadian residency or self-hosted open weights, and no
 # training on customer data) and set status: approved.
 #
-# SEED DATA — every entry below is `trial` because its residency and retention
-# terms have not yet been verified by a human. No entry is bank-eligible until
-# someone confirms the facts and flips status to `approved` in a reviewed PR.
+# REGION AND RESIDENCY ARE SOURCED, NOT GUESSED. Every `region` below is the
+# `vertex_location` the production LiteLLM gateway actually routes that model to:
+#   catalog/environments/production/releases/data-science/litellm.yaml
+# The `-ca` suffixed ids are the Canadian-region aliases; they point at the same
+# underlying Vertex models as their bare counterparts, but pinned to
+# northamerica-northeast1. The TD environments (td-dev, td-sit1, td-sit2) serve
+# ONLY the `-ca` set.
+#
+# `residency: multi` records Vertex's `global` endpoint, which gives no regional
+# guarantee — it is not Canadian residency, and must not be read as such.
+#
+# STATUS IS STILL `trial` EVERYWHERE. The location facts are now verified; the
+# governance decision to approve a model is a human one. Flipping a `-ca` entry to
+# `approved` grants it the bank tier automatically via the policy rules.
+
+# --- Canadian region: northamerica-northeast1 -------------------------------
+# These five are the only models the gateway serves from Canada, and the only
+# ones the TD environments expose.
+
+- id: gemini-2.5-pro-ca
+  display_name: Gemini 2.5 Pro (Canada)
+  provider: google
+  hosting: vertex
+  region: northamerica-northeast1
+  residency: canada
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr, general]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: >-
+    Canadian-region alias for vertex_ai/gemini-2.5-pro. Named in OG-28433 as the
+    replacement for gemini-3.1-pro-preview, which Vertex does not offer in
+    northamerica-northeast1. Retention terms not yet tied to a DPA reference.
+  gateway:
+    model_name: gemini-2.5-pro-ca
+
+- id: gemini-2.5-flash-ca
+  display_name: Gemini 2.5 Flash (Canada)
+  provider: google
+  hosting: vertex
+  region: northamerica-northeast1
+  residency: canada
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: Canadian-region alias for vertex_ai/gemini-2.5-flash. DPA reference not yet recorded.
+  gateway:
+    model_name: gemini-2.5-flash-ca
+
+- id: gemini-3.5-flash-ca
+  display_name: Gemini 3.5 Flash (Canada)
+  provider: google
+  hosting: vertex
+  region: northamerica-northeast1
+  residency: canada
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: >-
+    Canadian-region alias for vertex_ai/gemini-3.5-flash. The v0.38.1 accuracy
+    report called this alias unconfirmed as of 2026-08-11; the production gateway
+    now routes it to northamerica-northeast1, so that is resolved.
+  gateway:
+    model_name: gemini-3.5-flash-ca
+
+- id: gemini-embedding-001-ca
+  display_name: Gemini Embedding 001 (Canada)
+  provider: google
+  hosting: vertex
+  region: northamerica-northeast1
+  residency: canada
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [embedding]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: Canadian-region alias for vertex_ai/gemini-embedding-001. DPA reference not yet recorded.
+  gateway:
+    model_name: gemini-embedding-001-ca
+
+- id: text-multilingual-embedding-002-ca
+  display_name: Text Multilingual Embedding 002 (Canada)
+  provider: google
+  hosting: vertex
+  region: northamerica-northeast1
+  residency: canada
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [embedding]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: >-
+    Canadian-region alias for vertex_ai/text-multilingual-embedding-002. Relevant
+    to the bilingual FR/EN semantic-similarity use case.
+  gateway:
+    model_name: text-multilingual-embedding-002-ca
+
+# --- Vertex `global` endpoint: NO regional residency guarantee ---------------
 
 - id: gemini-2.5-pro
   display_name: Gemini 2.5 Pro
   provider: google
   hosting: vertex
-  region: unverified
+  region: global
   residency: multi
   open_weights: false
   trains_on_customer_data: false
   use_cases: [ocr, general]
   status: trial
   approved_on: 2026-09-16
-  approval_ref: seed — no approval yet
-  review_by: 2026-12-16
-  notes: In use in documents-extractor. Region and DPA terms UNVERIFIED.
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: Vertex `global` endpoint. Use gemini-2.5-pro-ca for anything touching bank-client data.
+  gateway:
+    model_name: gemini-2.5-pro
 
 - id: gemini-2.5-flash
   display_name: Gemini 2.5 Flash
   provider: google
   hosting: vertex
-  region: unverified
+  region: global
   residency: multi
   open_weights: false
   trains_on_customer_data: false
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
-  approval_ref: seed — no approval yet
-  review_by: 2026-12-16
-  notes: Region and DPA terms UNVERIFIED.
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: Vertex `global` endpoint. Canadian counterpart is gemini-2.5-flash-ca.
+  gateway:
+    model_name: gemini-2.5-flash
 
 - id: gemini-3.5-flash
   display_name: Gemini 3.5 Flash
   provider: google
   hosting: vertex
-  region: unverified
+  region: global
   residency: multi
   open_weights: false
   trains_on_customer_data: false
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
-  approval_ref: seed — no approval yet
-  review_by: 2026-12-16
-  notes: Region and DPA terms UNVERIFIED.
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: Vertex `global` endpoint. Canadian counterpart is gemini-3.5-flash-ca.
+  gateway:
+    model_name: gemini-3.5-flash
 
 - id: gemini-3.5-flash-lite
   display_name: Gemini 3.5 Flash Lite
   provider: google
   hosting: vertex
-  region: unverified
+  region: global
   residency: multi
   open_weights: false
   trains_on_customer_data: false
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
-  approval_ref: seed — no approval yet
-  review_by: 2026-12-16
-  notes: Region and DPA terms UNVERIFIED.
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: Vertex `global` endpoint. No Canadian alias is configured on the gateway.
+  gateway:
+    model_name: gemini-3.5-flash-lite
 
 - id: gemini-3.6-flash
   display_name: Gemini 3.6 Flash
   provider: google
   hosting: vertex
-  region: unverified
+  region: global
   residency: multi
   open_weights: false
   trains_on_customer_data: false
   use_cases: [ocr]
   status: trial
   approved_on: 2026-09-16
-  approval_ref: seed — no approval yet
-  review_by: 2026-12-16
-  notes: Region and DPA terms UNVERIFIED.
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: Vertex `global` endpoint. No Canadian alias is configured on the gateway.
+  gateway:
+    model_name: gemini-3.6-flash
+
+- id: gemini-3.1-flash-lite
+  display_name: Gemini 3.1 Flash Lite
+  provider: google
+  hosting: vertex
+  region: global
+  residency: multi
+  open_weights: false
+  trains_on_customer_data: false
+  use_cases: [ocr]
+  status: trial
+  approved_on: 2026-09-16
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: Vertex `global` endpoint. No Canadian alias is configured on the gateway.
+  gateway:
+    model_name: gemini-3.1-flash-lite
 
 - id: gemini-3.1-pro-preview
   display_name: Gemini 3.1 Pro (preview)
   provider: google
   hosting: vertex
-  region: unverified
+  region: global
   residency: multi
   open_weights: false
   trains_on_customer_data: false
   use_cases: [ocr, general]
   status: trial
   approved_on: 2026-09-16
-  approval_ref: seed — no approval yet
-  review_by: 2026-12-16
-  notes: Preview model. Region and DPA terms UNVERIFIED.
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: >-
+    Vertex `global` endpoint, and per OG-28433 this model is NOT offered in
+    northamerica-northeast1 at all, so no Canadian alias is possible. It cannot
+    serve bank-client data.
+  gateway:
+    model_name: gemini-3.1-pro-preview
 
-- id: gemini-3.1-flash-lite
-  display_name: Gemini 3.1 Flash Lite
+# --- us-central1: United States ---------------------------------------------
+
+- id: gemini-embedding-001
+  display_name: Gemini Embedding 001
   provider: google
   hosting: vertex
-  region: unverified
-  residency: multi
-  open_weights: false
-  trains_on_customer_data: false
-  use_cases: [ocr]
-  status: trial
-  approved_on: 2026-09-16
-  approval_ref: seed — no approval yet
-  review_by: 2026-12-16
-  notes: Region and DPA terms UNVERIFIED.
-
-- id: gpt-4.1
-  display_name: GPT-4.1
-  provider: openai
-  hosting: saas
-  region: us
+  region: us-central1
   residency: us
   open_weights: false
   trains_on_customer_data: false
-  use_cases: [general]
+  use_cases: [embedding]
   status: trial
   approved_on: 2026-09-16
-  approval_ref: seed — no approval yet
-  review_by: 2026-12-16
-  notes: US-hosted; standard tier only by policy. Retention terms UNVERIFIED.
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: US region. Canadian counterpart is gemini-embedding-001-ca.
+  gateway:
+    model_name: gemini-embedding-001
 
-- id: gpt-4o
-  display_name: GPT-4o
-  provider: openai
-  hosting: saas
-  region: us
+- id: text-multilingual-embedding-002
+  display_name: Text Multilingual Embedding 002
+  provider: google
+  hosting: vertex
+  region: us-central1
   residency: us
   open_weights: false
   trains_on_customer_data: false
-  use_cases: [general]
+  use_cases: [embedding]
   status: trial
   approved_on: 2026-09-16
-  approval_ref: seed — no approval yet
-  review_by: 2026-12-16
-  notes: US-hosted; standard tier only by policy. Retention terms UNVERIFIED.
-
-- id: gpt-4o-mini
-  display_name: GPT-4o mini
-  provider: openai
-  hosting: saas
-  region: us
-  residency: us
-  open_weights: false
-  trains_on_customer_data: false
-  use_cases: [general]
-  status: trial
-  approved_on: 2026-09-16
-  approval_ref: seed — no approval yet
-  review_by: 2026-12-16
-  notes: US-hosted; standard tier only by policy. Retention terms UNVERIFIED.
+  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
+  review_by: 2027-03-16
+  notes: US region. Canadian counterpart is text-multilingual-embedding-002-ca.
+  gateway:
+    model_name: text-multilingual-embedding-002
