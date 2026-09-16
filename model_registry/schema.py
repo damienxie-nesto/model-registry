@@ -94,6 +94,13 @@ class ModelEntry(BaseModel):
     approval_ref: str
     review_by: date
     notes: str = ''
+    #: The Canadian-region alias the gateway serves for this same underlying model, if
+    #: any. Recorded as a field rather than its own registry entry: the registry lists
+    #: one row per model, but the alias is a distinct callable name with different
+    #: residency, and losing it would leave no record of which models can be reached
+    #: in-region at all.
+    canadian_alias: str | None = None
+    canadian_alias_region: str | None = None
     replacement: str | None = None
     gateway: GatewayBinding | None = None
 

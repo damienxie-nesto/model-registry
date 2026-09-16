@@ -2,33 +2,42 @@
 #
 # Edit via pull request only. Tiers are NOT set here: they are derived from these
 # facts by model_registry/policy.py. To approve a model for bank clients, record
-# facts that justify it (Canadian residency or self-hosted open weights, and no
-# training on customer data) and set status: approved.
+# facts that justify it (Canadian residency or self-hosted open weights, generally
+# available at the provider, and no training on customer data) and set
+# status: approved.
+#
+# ONE ROW PER MODEL. The production gateway also serves five Canadian-region
+# aliases (`-ca` suffix) that point at the same underlying Vertex models pinned to
+# northamerica-northeast1. They are deliberately NOT separate entries here; where a
+# model has one, it is recorded on the parent as `canadian_alias`.
+#
+#   Consequences to expect, so nobody mistakes them for faults:
+#     - The drift check will report the five `-ca` names as served-but-unapproved
+#       on its first real run against production. That is this layout choice
+#       surfacing, not a gateway problem.
+#     - The PR scanner will treat a `-ca` name in code as an unknown model and warn
+#       (it will not block, since unknown IDs warn by default).
+#     - The TD environments (td-dev, td-sit1, td-sit2) serve ONLY the five `-ca`
+#       names. The bare ids listed below are not available there.
 #
 # REGION AND RESIDENCY ARE SOURCED, NOT GUESSED. Every `region` below is the
-# `vertex_location` the production LiteLLM gateway actually routes that model to:
+# `vertex_location` the production LiteLLM gateway actually routes that id to:
 #   catalog/environments/production/releases/data-science/litellm.yaml
-# The `-ca` suffixed ids are the Canadian-region aliases; they point at the same
-# underlying Vertex models as their bare counterparts, but pinned to
-# northamerica-northeast1. The TD environments (td-dev, td-sit1, td-sit2) serve
-# ONLY the `-ca` set.
 #
 # `residency: multi` records Vertex's `global` endpoint, which gives no regional
-# guarantee — it is not Canadian residency, and must not be read as such.
-#
+# guarantee — it is not Canadian residency and must not be read as such.
 #
 # LAUNCH STAGE IS A RESIDENCY FACT, NOT METADATA. Google's Vertex AI data residency
 # commitments explicitly exclude any feature in experimental or preview launch
-# status, so a preview model can carry a Canadian `region` while Google commits
-# nothing about where it is processed. `launch_stage` is therefore recorded per
-# model and the bank tier requires `ga`. It is `unverified` almost everywhere below
-# because GA status has not been confirmed per model — that is an unrecorded fact,
-# not an assumption of the worst case.
+# status, so a preview model can carry a regional value while Google commits nothing
+# about where it is processed. The bank tier therefore requires `ga`. It is
+# `unverified` almost everywhere below because GA status has not been confirmed per
+# model — an unrecorded fact, not an assumption of the worst case.
 #
 # VERIFIED AGAINST GOOGLE'S DOCUMENTATION, 2026-09-16:
 #   - Global endpoints "don't provide regional isolation or data residency
 #     guarantees", and you "can't control or know which region your ML processing
-#     requests are sent to". Hence residency: multi for every `global` entry.
+#     requests are sent to".
 #     https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/locations
 #   - Residency commitments exclude experimental and preview launch stages.
 #     https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/data-residency
@@ -38,121 +47,13 @@
 #
 # OPEN QUESTION — CANADIAN ML-PROCESSING COMMITMENT. Google's docs are not
 # consistent on whether the machine-learning-processing residency commitment (as
-# opposed to data-at-rest) extends to Canada: one page states the AI/ML data
-# location commitment is supported only in US and EU locations, while Gemini 3.5
-# Flash is separately described as available in Canada with both at-rest residency
-# and ML processing. Until that is resolved with Google or through the DPA, the
-# `canada` residency values below are grounded in the gateway's regional pinning,
-# not in a confirmed contractual ML-processing guarantee. Resolve before approving
-# any entry for bank clients.
+# opposed to data-at-rest) extends to Canada: one page limits the AI/ML data
+# location commitment to US and EU locations, while Gemini 3.5 Flash is separately
+# described as available in Canada with both. Resolve with Google or through the DPA
+# before approving anything for bank clients.
 #
-# STATUS IS STILL `trial` EVERYWHERE. The location facts are now verified; the
-# governance decision to approve a model is a human one. Flipping a `-ca` entry to
-# `approved` grants it the bank tier automatically via the policy rules.
-
-# --- Canadian region: northamerica-northeast1 -------------------------------
-# These five are the only models the gateway serves from Canada, and the only
-# ones the TD environments expose.
-
-- id: gemini-2.5-pro-ca
-  display_name: Gemini 2.5 Pro (Canada)
-  provider: google
-  hosting: vertex
-  region: northamerica-northeast1
-  residency: canada
-  open_weights: false
-  trains_on_customer_data: false
-  launch_stage: unverified
-  use_cases: [ocr, general]
-  status: trial
-  approved_on: 2026-09-16
-  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
-  review_by: 2027-03-16
-  notes: >-
-    Canadian-region alias for vertex_ai/gemini-2.5-pro. Named in OG-28433 as the
-    replacement for gemini-3.1-pro-preview, which Vertex does not offer in
-    northamerica-northeast1. Retention terms not yet tied to a DPA reference.
-  gateway:
-    model_name: gemini-2.5-pro-ca
-
-- id: gemini-2.5-flash-ca
-  display_name: Gemini 2.5 Flash (Canada)
-  provider: google
-  hosting: vertex
-  region: northamerica-northeast1
-  residency: canada
-  open_weights: false
-  trains_on_customer_data: false
-  launch_stage: unverified
-  use_cases: [ocr]
-  status: trial
-  approved_on: 2026-09-16
-  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
-  review_by: 2027-03-16
-  notes: Canadian-region alias for vertex_ai/gemini-2.5-flash. DPA reference not yet recorded.
-  gateway:
-    model_name: gemini-2.5-flash-ca
-
-- id: gemini-3.5-flash-ca
-  display_name: Gemini 3.5 Flash (Canada)
-  provider: google
-  hosting: vertex
-  region: northamerica-northeast1
-  residency: canada
-  open_weights: false
-  trains_on_customer_data: false
-  launch_stage: unverified
-  use_cases: [ocr]
-  status: trial
-  approved_on: 2026-09-16
-  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
-  review_by: 2027-03-16
-  notes: >-
-    Canadian-region alias for vertex_ai/gemini-3.5-flash. The v0.38.1 accuracy
-    report called this alias unconfirmed as of 2026-08-11; the production gateway
-    now routes it to northamerica-northeast1, so that is resolved.
-  gateway:
-    model_name: gemini-3.5-flash-ca
-
-- id: gemini-embedding-001-ca
-  display_name: Gemini Embedding 001 (Canada)
-  provider: google
-  hosting: vertex
-  region: northamerica-northeast1
-  residency: canada
-  open_weights: false
-  trains_on_customer_data: false
-  launch_stage: unverified
-  use_cases: [embedding]
-  status: trial
-  approved_on: 2026-09-16
-  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
-  review_by: 2027-03-16
-  notes: Canadian-region alias for vertex_ai/gemini-embedding-001. DPA reference not yet recorded.
-  gateway:
-    model_name: gemini-embedding-001-ca
-
-- id: text-multilingual-embedding-002-ca
-  display_name: Text Multilingual Embedding 002 (Canada)
-  provider: google
-  hosting: vertex
-  region: northamerica-northeast1
-  residency: canada
-  open_weights: false
-  trains_on_customer_data: false
-  launch_stage: unverified
-  use_cases: [embedding]
-  status: trial
-  approved_on: 2026-09-16
-  approval_ref: seed from catalog production litellm.yaml — no approval PR yet
-  review_by: 2027-03-16
-  notes: >-
-    Canadian-region alias for vertex_ai/text-multilingual-embedding-002. Relevant
-    to the bilingual FR/EN semantic-similarity use case.
-  gateway:
-    model_name: text-multilingual-embedding-002-ca
-
-# --- Vertex `global` endpoint: NO regional residency guarantee ---------------
+# STATUS IS STILL `trial` EVERYWHERE. Location facts are verified; approving a model
+# is a human decision made in a reviewed PR.
 
 - id: gemini-2.5-pro
   display_name: Gemini 2.5 Pro
@@ -171,6 +72,8 @@
   notes: Vertex `global` endpoint. Use gemini-2.5-pro-ca for anything touching bank-client data.
   gateway:
     model_name: gemini-2.5-pro
+  canadian_alias: gemini-2.5-pro-ca
+  canadian_alias_region: northamerica-northeast1
 
 - id: gemini-2.5-flash
   display_name: Gemini 2.5 Flash
@@ -189,6 +92,8 @@
   notes: Vertex `global` endpoint. Canadian counterpart is gemini-2.5-flash-ca.
   gateway:
     model_name: gemini-2.5-flash
+  canadian_alias: gemini-2.5-flash-ca
+  canadian_alias_region: northamerica-northeast1
 
 - id: gemini-3.5-flash
   display_name: Gemini 3.5 Flash
@@ -207,6 +112,8 @@
   notes: Vertex `global` endpoint. Canadian counterpart is gemini-3.5-flash-ca.
   gateway:
     model_name: gemini-3.5-flash
+  canadian_alias: gemini-3.5-flash-ca
+  canadian_alias_region: northamerica-northeast1
 
 - id: gemini-3.5-flash-lite
   display_name: Gemini 3.5 Flash Lite
@@ -283,8 +190,6 @@
   gateway:
     model_name: gemini-3.1-pro-preview
 
-# --- us-central1: United States ---------------------------------------------
-
 - id: gemini-embedding-001
   display_name: Gemini Embedding 001
   provider: google
@@ -302,6 +207,8 @@
   notes: US region. Canadian counterpart is gemini-embedding-001-ca.
   gateway:
     model_name: gemini-embedding-001
+  canadian_alias: gemini-embedding-001-ca
+  canadian_alias_region: northamerica-northeast1
 
 - id: text-multilingual-embedding-002
   display_name: Text Multilingual Embedding 002
@@ -320,3 +227,5 @@
   notes: US region. Canadian counterpart is text-multilingual-embedding-002-ca.
   gateway:
     model_name: text-multilingual-embedding-002
+  canadian_alias: text-multilingual-embedding-002-ca
+  canadian_alias_region: northamerica-northeast1
