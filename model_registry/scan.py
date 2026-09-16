@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from fnmatch import fnmatch
 
-from model_registry.loader import Registry
+from model_registry.loader import Registry, ResolvedModel
 from model_registry.schema import Status
 
 #: Paths where naming a model is legitimate rather than a usage decision:
@@ -31,6 +31,21 @@ _PREFIX_CANDIDATE = r'(?:gemini|gpt|text-embedding|claude)[-\w.]*'
 _IGNORE = re.compile(r'model-registry:\s*ignore')
 _HUNK = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@')
 _TARGET_FILE = re.compile(r'^\+\+\+ b/(.+)$')
+#: A `+++ b/<path>` header is only ever emitted immediately after its `--- a/<path>`
+#: (or `--- /dev/null`, for a new file) partner. Requiring that partner is what stops
+#: an *added line* whose content happens to start with `++ b/` — a diff quoted inside a
+#: doc, a fixture, a changelog — from being read as a file header. Without it the
+#: scanner switched files mid-hunk and silently stopped scanning the rest of the real
+#: one: a scan that did not scan, reporting exit 0.
+_SOURCE_FILE = re.compile(r'^--- (?:a/|/dev/null)')
+
+
+def _file_header_path(line: str, previous_line: str) -> str | None:
+    """Return the target path when `line` is a genuine file header, else `None`."""
+    if not _SOURCE_FILE.match(previous_line):
+        return None
+    target = _TARGET_FILE.match(line)
+    return target.group(1) if target else None
 
 
 def has_file_header(diff_text: str) -> bool:
@@ -39,7 +54,12 @@ def has_file_header(diff_text: str) -> bool:
     Used to distinguish a genuinely empty diff (nothing changed) from input that is
     not a parseable unified diff at all, so the latter is never reported as clean.
     """
-    return any(_TARGET_FILE.match(line) for line in diff_text.splitlines())
+    previous_line = ''
+    for line in diff_text.splitlines():
+        if _file_header_path(line, previous_line) is not None:
+            return True
+        previous_line = line
+    return False
 
 
 def _build_candidate_pattern(registry: Registry) -> re.Pattern[str]:
@@ -76,12 +96,24 @@ def _is_excluded(path: str, excluded_globs: tuple[str, ...]) -> bool:
     return any(fnmatch(path, pattern) for pattern in excluded_globs)
 
 
+def _build_id_index(registry: Registry) -> dict[str, ResolvedModel]:
+    """Index the registry by lower-cased ID.
+
+    `_build_candidate_pattern` matches case-insensitively, so without this the scanner
+    would find `Gemini-2.5-Pro` and then fail to resolve it through the case-sensitive
+    `Registry.by_id`, classifying a banned model as merely *unknown* — a WARN and exit
+    0 where a BLOCK was owed. Blocking must not degrade on a capitalisation
+    difference, so matching and resolution use the same case rules.
+    """
+    return {model.entry.id.lower(): model for model in registry.models}
+
+
 def _classify(
     model_id: str,
-    registry: Registry,
+    id_index: dict[str, ResolvedModel],
     unknown_severity: Severity,
 ) -> tuple[str, Severity] | None:
-    resolved = registry.by_id(model_id)
+    resolved = id_index.get(model_id.lower())
     if resolved is None:
         return ('unknown', unknown_severity)
     if resolved.entry.status is Status.DEPRECATED:
@@ -106,12 +138,15 @@ def scan_diff(
     path = ''
     skip_file = True
     line_no = 0
+    previous_line = ''
     candidate_pattern = _build_candidate_pattern(registry)
+    id_index = _build_id_index(registry)
 
     for raw_line in diff_text.splitlines():
-        target = _TARGET_FILE.match(raw_line)
-        if target:
-            path = target.group(1)
+        target_path = _file_header_path(raw_line, previous_line)
+        previous_line = raw_line
+        if target_path is not None:
+            path = target_path
             skip_file = _is_excluded(path, excluded_globs)
             continue
 
@@ -129,7 +164,7 @@ def scan_diff(
 
         content = raw_line[1:]
         if not skip_file and not _IGNORE.search(content):
-            findings.extend(_scan_line(content, path, line_no, registry, unknown_severity, candidate_pattern))
+            findings.extend(_scan_line(content, path, line_no, id_index, unknown_severity, candidate_pattern))
         line_no += 1
 
     return findings
@@ -139,14 +174,16 @@ def _scan_line(
     content: str,
     path: str,
     line_no: int,
-    registry: Registry,
+    id_index: dict[str, ResolvedModel],
     unknown_severity: Severity,
     candidate_pattern: re.Pattern[str],
 ) -> list[Finding]:
     found: list[Finding] = []
     for match in candidate_pattern.finditer(content):
+        # Reported verbatim, not normalised: the message has to name the string as the
+        # developer wrote it for them to find it in their own diff.
         model_id = match.group(0)
-        classification = _classify(model_id, registry, unknown_severity)
+        classification = _classify(model_id, id_index, unknown_severity)
         if classification is None:
             continue
         reason, severity = classification

@@ -6,7 +6,7 @@ import pytest
 
 from model_registry.loader import Registry, ResolvedModel
 from model_registry.policy import Tier
-from model_registry.scan import Severity, scan_diff
+from model_registry.scan import Severity, has_file_header, scan_diff
 from model_registry.schema import Hosting, ModelEntry, Provider, Residency, Status, UseCase
 
 
@@ -146,3 +146,64 @@ def test_multi_file_diff_resets_state_between_files_reverse_order(registry: Regi
     findings = scan_diff(diff, registry)
     assert len(findings) == 1
     assert findings[0].path == 'app.py'
+
+
+def test_banned_model_blocks_regardless_of_casing(registry: Registry) -> None:
+    """A capitalisation difference must not turn a BLOCK into a WARN.
+
+    The candidate pattern has always matched case-insensitively while `Registry.by_id`
+    resolved case-sensitively, so `GPT-4o` came back *unknown* — exit 0 — for a model
+    the registry bans.
+    """
+    findings = scan_diff(_diff('app.py', "MODEL = 'GPT-4o'"), registry)
+    assert len(findings) == 1
+    assert findings[0].severity is Severity.BLOCK
+    assert findings[0].reason == 'banned'
+
+
+def test_mixed_case_deprecated_model_blocks(registry: Registry) -> None:
+    findings = scan_diff(_diff('app.py', "MODEL = 'Gemini-2.5-Pro'"), registry)
+    assert len(findings) == 1
+    assert findings[0].severity is Severity.BLOCK
+    assert findings[0].reason == 'deprecated'
+
+
+def test_finding_reports_the_model_id_as_written(registry: Registry) -> None:
+    """Report the string the developer actually typed so the message is actionable."""
+    findings = scan_diff(_diff('app.py', "MODEL = 'GPT-4o'"), registry)
+    assert findings[0].model_id == 'GPT-4o'
+
+
+def test_approved_model_produces_no_finding_in_any_casing(registry: Registry) -> None:
+    assert scan_diff(_diff('app.py', "MODEL = 'Gemini-3.5-Flash'"), registry) == []
+
+
+def test_added_line_starting_with_plus_plus_b_does_not_hijack_the_file_header(registry: Registry) -> None:
+    """Added content that looks like a header must not stop the scan.
+
+    A file quoting a diff (docs fixture, changelog, test data) can add a line whose
+    content begins `++ b/`. That used to be consumed as a `+++ b/<path>` header: the
+    scanner switched to a made-up path, and the rest of the real file went unscanned
+    with no diagnostic and exit 0 — a scan that did not scan, reported as clean.
+    """
+    diff = _diff(
+        'app.py',
+        '++ b/docs/quoted-patch.txt',
+        'SAMPLE = "unchanged"',
+        "MODEL = 'gpt-4o'",
+    )
+    findings = scan_diff(diff, registry)
+    assert [finding.model_id for finding in findings] == ['gpt-4o']
+    assert findings[0].path == 'app.py'
+    assert findings[0].severity is Severity.BLOCK
+
+
+def test_added_line_starting_with_plus_plus_b_does_not_redirect_to_an_excluded_path(registry: Registry) -> None:
+    """The same hijack aimed at an excluded glob, which is the silent-skip version."""
+    diff = _diff('app.py', '++ b/docs/anything.md', "MODEL = 'gpt-4o'")
+    assert [finding.model_id for finding in scan_diff(diff, registry)] == ['gpt-4o']
+
+
+def test_has_file_header_ignores_a_hijacked_header() -> None:
+    assert has_file_header(_diff('app.py', '++ b/docs/quoted-patch.txt')) is True
+    assert has_file_header('+++ b/docs/quoted-patch.txt\n') is False
