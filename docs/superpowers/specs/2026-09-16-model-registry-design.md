@@ -83,6 +83,7 @@ Stack mirrors `llm-kit`: uv, ruff, mypy strict, pytest, Makefile with `make chec
   approval_ref: https://github.com/nesto/model-registry/pull/1
   review_by: 2027-09-16
   notes: DPA covers Montreal region; no training on inference data.
+  replacement: null               # required when status == deprecated
   gateway:                        # unused in v1; shaped for the Future section
     model_name: gemini-2.5-flash
     api_base: null
