@@ -23,11 +23,6 @@ Tiers are **derived**, not declared: see `model_registry/policy.py` for the rule
 | `model-registry scan` | consumer repos, every PR | a PR introduces a deprecated, banned, or unknown model |
 | `model-registry drift` | weekly cloud routine | the gateway serves something the registry does not approve |
 
-> **Not published yet:** `action.yml` and `docs/adopting.md` both reference
-> `OWNER/model-registry`, where `OWNER` is a literal placeholder — this repo's GitHub
-> owner has not been decided. Replace it in both files before any consumer repo points
-> at the action.
-
 ## Approved models
 
 <!-- BEGIN MODELS -->

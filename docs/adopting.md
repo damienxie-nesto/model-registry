@@ -1,10 +1,5 @@
 # Adopting the model registry check
 
-> **`OWNER` placeholder:** this repo's GitHub owner has not been decided yet.
-> Every `OWNER` below (and in `action.yml`) is a literal placeholder — replace
-> it with the real GitHub owner/org before referencing this action from any
-> consumer repo. Referencing `OWNER/model-registry` as written will not work.
-
 Add `.github/workflows/model-registry.yml` to your repo:
 
 ```yaml
@@ -18,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # the scan needs both sides of the diff
-      - uses: OWNER/model-registry@v1
+      - uses: damienxie-nesto/model-registry@v1
         with:
           block-unknown: 'false'   # start in warn mode
 ```
@@ -67,7 +62,7 @@ exactly what `action.yml` does for the public case:
 ```yaml
       - uses: actions/checkout@v4
         with:
-          repository: OWNER/model-registry
+          repository: damienxie-nesto/model-registry
           token: ${{ secrets.REGISTRY_TOKEN }}
           path: .model-registry
       - run: pip install ./.model-registry

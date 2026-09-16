@@ -112,7 +112,7 @@ def _cmd_scan(registry: Registry, diff_text: str, *, block_unknown: bool) -> int
     for finding in findings:
         sys.stderr.write(f'{finding.format()}\n')
     if any(finding.severity is Severity.BLOCK for finding in findings):
-        sys.stderr.write('\nSee the approved list: https://github.com/OWNER/model-registry\n')
+        sys.stderr.write('\nSee the approved list: https://github.com/damienxie-nesto/model-registry\n')
         return 1
     sys.stdout.write(f'{len(findings)} warning(s), no blocking model usage\n')
     return 0

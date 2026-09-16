@@ -1,7 +1,3 @@
-# NOTE: the `OWNER` in `repository: OWNER/model-registry` below is a deliberate
-# placeholder. This repo's GitHub owner has not been decided yet. Before this
-# action can be referenced by any consumer repo, replace every `OWNER` in this
-# file (and in docs/adopting.md) with the real GitHub owner/org.
 name: Model Registry Check
 description: Fail a PR that introduces a model ID that is not approved in the Nesto model registry.
 
@@ -21,7 +17,7 @@ runs:
     - name: Check out the registry
       uses: actions/checkout@v4
       with:
-        repository: OWNER/model-registry
+        repository: damienxie-nesto/model-registry
         ref: ${{ inputs.registry-ref }}
         path: .model-registry
 

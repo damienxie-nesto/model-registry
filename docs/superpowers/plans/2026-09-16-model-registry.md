@@ -209,7 +209,7 @@ def _entry(**overrides: object) -> ModelEntry:
         'use_cases': [UseCase.OCR],
         'status': Status.APPROVED,
         'approved_on': date(2026, 9, 16),
-        'approval_ref': 'https://github.com/OWNER/model-registry/pull/1',
+        'approval_ref': 'https://github.com/damienxie-nesto/model-registry/pull/1',
         'review_by': date(2027, 9, 16),
     }
     base.update(overrides)
@@ -399,7 +399,7 @@ def _entry(**overrides: object) -> ModelEntry:
         'use_cases': [UseCase.OCR],
         'status': Status.APPROVED,
         'approved_on': date(2026, 9, 16),
-        'approval_ref': 'https://github.com/OWNER/model-registry/pull/1',
+        'approval_ref': 'https://github.com/damienxie-nesto/model-registry/pull/1',
         'review_by': date(2027, 9, 16),
     }
     base.update(overrides)
@@ -535,7 +535,7 @@ VALID_ENTRY = """
   use_cases: [ocr]
   status: approved
   approved_on: 2026-09-16
-  approval_ref: https://github.com/OWNER/model-registry/pull/1
+  approval_ref: https://github.com/damienxie-nesto/model-registry/pull/1
   review_by: 2027-09-16
 """
 
@@ -920,7 +920,7 @@ def _resolved(model_id: str, tiers: frozenset[Tier]) -> ResolvedModel:
         use_cases=[UseCase.OCR],
         status=Status.APPROVED,
         approved_on=date(2026, 9, 16),
-        approval_ref='https://github.com/OWNER/model-registry/pull/1',
+        approval_ref='https://github.com/damienxie-nesto/model-registry/pull/1',
         review_by=date(2027, 9, 16),
     )
     return ResolvedModel(entry=entry, tiers=tiers)
@@ -1089,7 +1089,7 @@ VALID_ENTRY = """
   use_cases: [ocr]
   status: approved
   approved_on: 2026-09-16
-  approval_ref: https://github.com/OWNER/model-registry/pull/1
+  approval_ref: https://github.com/damienxie-nesto/model-registry/pull/1
   review_by: 2099-01-01
 """
 
@@ -1272,7 +1272,7 @@ def _resolved(model_id: str, status: Status) -> ResolvedModel:
         use_cases=[UseCase.OCR],
         status=status,
         approved_on=date(2026, 9, 16),
-        approval_ref='https://github.com/OWNER/model-registry/pull/1',
+        approval_ref='https://github.com/damienxie-nesto/model-registry/pull/1',
         review_by=date(2099, 1, 1),
         replacement='gemini-3.5-flash' if status is Status.DEPRECATED else None,
     )
@@ -1525,7 +1525,7 @@ In `main()`, before the final `return 0`:
         for finding in findings:
             sys.stderr.write(f'{finding.format()}\n')
         if any(finding.severity is Severity.BLOCK for finding in findings):
-            sys.stderr.write('\nSee the approved list: https://github.com/OWNER/model-registry\n')
+            sys.stderr.write('\nSee the approved list: https://github.com/damienxie-nesto/model-registry\n')
             return 1
         sys.stdout.write(f'{len(findings)} warning(s), no blocking model usage\n')
         return 0
@@ -1579,7 +1579,7 @@ git commit -m "feat: scan added diff lines for unapproved model IDs"
 
 **Interfaces:**
 - Consumes: the `model-registry` CLI installed from this repo.
-- Produces: an action consumer repos reference as `OWNER/model-registry@v1`.
+- Produces: an action consumer repos reference as `damienxie-nesto/model-registry@v1`.
 
 **Prerequisite:** the repo must be **public** for nesto-org repos to reference this action. If it stays private, consumers must instead `pip install` from a git URL with a token — `docs/adopting.md` covers both.
 
@@ -1605,7 +1605,7 @@ runs:
     - name: Check out the registry
       uses: actions/checkout@v4
       with:
-        repository: OWNER/model-registry
+        repository: damienxie-nesto/model-registry
         ref: ${{ inputs.registry-ref }}
         path: .model-registry
 
@@ -1660,7 +1660,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # the scan needs both sides of the diff
-      - uses: OWNER/model-registry@v1
+      - uses: damienxie-nesto/model-registry@v1
         with:
           block-unknown: 'false'   # start in warn mode
 ```
@@ -1683,7 +1683,7 @@ merely look like model IDs, not to skip an approval.
 Replace the `uses:` step with a direct install:
 
 ```yaml
-      - run: pip install "git+https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/OWNER/model-registry.git"
+      - run: pip install "git+https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/damienxie-nesto/model-registry.git"
       - run: git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | model-registry scan
 ```
 ```
@@ -1743,7 +1743,7 @@ def _resolved(model_id: str, status: Status = Status.APPROVED) -> ResolvedModel:
         use_cases=[UseCase.OCR],
         status=status,
         approved_on=date(2026, 9, 16),
-        approval_ref='https://github.com/OWNER/model-registry/pull/1',
+        approval_ref='https://github.com/damienxie-nesto/model-registry/pull/1',
         review_by=date(2099, 1, 1),
         replacement='beta' if status is Status.DEPRECATED else None,
     )

@@ -22,7 +22,7 @@ VALID_ENTRY = """
   use_cases: [ocr]
   status: approved
   approved_on: 2026-09-16
-  approval_ref: https://github.com/OWNER/model-registry/pull/1
+  approval_ref: https://github.com/damienxie-nesto/model-registry/pull/1
   review_by: 2099-01-01
 """
 

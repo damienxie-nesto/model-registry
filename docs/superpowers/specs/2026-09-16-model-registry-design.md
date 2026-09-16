@@ -80,7 +80,7 @@ Stack mirrors `llm-kit`: uv, ruff, mypy strict, pytest, Makefile with `make chec
   use_cases: [ocr]                # ocr | embedding | general | reranking
   status: approved                # approved | trial | deprecated | banned
   approved_on: 2026-09-16
-  approval_ref: https://github.com/OWNER/model-registry/pull/1
+  approval_ref: https://github.com/damienxie-nesto/model-registry/pull/1
   review_by: 2027-09-16
   notes: DPA covers Montreal region; no training on inference data.
   replacement: null               # required when status == deprecated

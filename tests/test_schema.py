@@ -21,7 +21,7 @@ def _entry(**overrides: object) -> ModelEntry:
         'use_cases': [UseCase.OCR],
         'status': Status.APPROVED,
         'approved_on': date(2026, 9, 16),
-        'approval_ref': 'https://github.com/OWNER/model-registry/pull/1',
+        'approval_ref': 'https://github.com/damienxie-nesto/model-registry/pull/1',
         'review_by': date(2027, 9, 16),
     }
     base.update(overrides)
