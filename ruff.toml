@@ -1,0 +1,160 @@
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+# Assume Python 3.10.
+target-version = "py312"
+line-length = 120
+
+[format]
+preview = true
+quote-style = "single"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+
+[lint]
+preview = true
+select = [
+    "ERA",      # Eradicate
+    "ANN",      # flake8-annotations
+    "ASYNC",    # flake8-async
+    "S",        # flake8-bandit
+    "BLE",      # flake8-blind-except
+    "FBT",      # flaske8-boolean-trap
+    "B",        # flake8-bugbear
+    "A",        # flake8-builtins
+    "COM",      # flake8-commas
+    "C4",       # flake8-comprehension
+    "DTZ",      # flake8-datetimez
+    "T10",      # flake8-debugger
+    "EM",       # flake8-errmsg
+    "EXE",      # flake8-executable
+    "FA",       # flake8-future-annotations
+    "ISC",      # flake8-implicit-str-concat
+    "ICN",      # flake8-import-conventions
+    "LOG",      # flake8-logging
+    "G",        # flake8-logging-format
+    "INP",      # flake8-no-pep420
+    "PIE",      # flake8-pie
+    "T20",      # flake8-print
+    "PYI",      # flake8-pyi
+    "PT",       # flake8-pytest-style
+    "Q",        # flake8-quotes
+    "RSE",      # flake8-raise
+    "RET",      # flake8-return
+    "SLF",      # flake8-self
+    "SIM",      # flake8-simplify
+    "SLOT",     # flake8-slots
+    "TID",      # flake8-tidy-imports
+    "ARG",      # flake8-unused-arguments
+    "PTH",      # flake8-use-pathlib
+    "FLY",      # flynt
+    "C90",      # mccabe
+    "N",        # pep8-naming
+    "PERF",     # Perflint
+    "E",        # Pycodestyle (error)
+    "W",        # Pycodestyle (warning)
+    "F",        # Pyflakes
+    "PGH",      # pygrep-hooks
+    "PL",       # pylint
+    "UP",       # pyupgrade
+    "FURB",     # refurb
+    "RUF",      # Ruff-specific rules
+    "TRY",      # Tryceratops
+    "I", # Isort
+]
+
+ignore = [
+    "ANN401",   # Any are usefull as we process data that is difficult to type, and we don't want to add type annotations for those cases
+    "EXE003",   # Useless
+    "PLW1514",  # Default is assume to be utf-8, and it's more readable to not specify it
+    "S311",     # We don't use cryptographic functions in our codebase
+    "PLR2004",  # Too strict. Catches cases where using magic value actually make sense
+    "ANN002",   # Remove the usefulness of args when used with inheritance
+    "ANN003", # Remove the usefulness of kwargs when used with inheritance
+    "TRY003",   # Allow exceptions to have string literal
+    "EM101",    # Allow string literals directly in exception constructors
+    "EM102",    # Allow f-string literals directly in exception constructors
+    "SIM118",   # dict.keys() is more explicit`
+    "TRY400",   # We can't use exception because of how datadog handles those rrecord. It creates one line for each line of the traceback which makes it impossible to read the actual error message and increase our amount of logging.
+    "TRY300",   # Not very readable
+    "C408",     # unnecessary dict call (it's more readable)
+    "PLR6301",  # False flag when overriding methods
+    "PLR0904", # We don't care much about this one
+    "PLW1641", # Don't force implementation of __hash__ when __eq__ is implemented, as we don't use those objects as dict keys or set members necessarily
+
+    ### Rules that conflict with ruff formatter
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "D206",
+    "D300",
+    "Q000",
+    "Q001",
+    "Q002",
+    "Q003",
+    "COM812",
+    "COM819",
+    "ISC001",
+    "ISC002",
+    "E501",
+    "PLR2004",
+
+]
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.isort]
+case-sensitive = true
+required-imports = ["from __future__ import annotations"]
+
+[lint.pylint]
+max-args = 7
+max-positional-args = 7
+
+[lint.per-file-ignores]
+# Ignore `ALL` in all `__init__.py` files, and in `path/to/file.py`.
+"__init__.py" = ["ALL"]
+# Test files have different conventions: static test methods, large test classes, blind exception catching for test assertions, and unannotated fixture helpers
+"tests/**/*.py" = [
+    "S101",
+    "PLR6301",
+    "PLR0904",
+    "BLE001",
+    "ANN002",
+    "PGH004"
+]
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[lint.flake8-pytest-style]
+fixture-parentheses = false

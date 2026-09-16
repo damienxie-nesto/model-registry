@@ -1,0 +1,53 @@
+[project]
+name = "model-registry"
+version = "0.1.0"
+description = "Source of truth for AI models approved for use at Nesto, and the checks that enforce it."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "httpx>=0.28",
+]
+
+[project.scripts]
+model-registry = "model_registry.cli:main"
+
+[build-system]
+requires = ["setuptools>=82.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["model_registry*"]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
+# disable pyright for cursor/vscode users; we use mypy
+[tool.pyright]
+typeCheckingMode = "off"
+reportMissingTypeStubs = false
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = ["tests/*"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.2",
+    "pre-commit>=4.6.0",
+    "ruff>=0.15.12",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+    "types-pyyaml>=6.0",
+]
