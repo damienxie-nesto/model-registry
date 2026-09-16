@@ -7,14 +7,14 @@ from pathlib import Path
 
 from model_registry.loader import DEFAULT_REGISTRY_PATH, Registry, RegistryError, load_registry
 from model_registry.render import render_table, splice
-from model_registry.scan import Severity, scan_diff
+from model_registry.scan import Severity, has_file_header, scan_diff
 
 DEFAULT_README_PATH = Path(__file__).resolve().parent.parent / 'README.md'
 
 
 def _build_parser() -> argparse.ArgumentParser:
     registry_parent = argparse.ArgumentParser(add_help=False)
-    registry_parent.add_argument('--registry', type=Path, default=DEFAULT_REGISTRY_PATH, help='path to models.yaml')
+    registry_parent.add_argument('--registry', type=Path, default=argparse.SUPPRESS, help='path to models.yaml')
 
     parser = argparse.ArgumentParser(
         prog='model-registry',
@@ -71,6 +71,10 @@ def _cmd_render(registry: Registry, readme_path: Path, *, check: bool) -> int:
 
 
 def _cmd_scan(registry: Registry, diff_text: str, *, block_unknown: bool) -> int:
+    if diff_text.strip() and not has_file_header(diff_text):
+        sys.stderr.write('input does not look like a unified diff (no `+++ b/<path>` file header found); cannot scan\n')
+        return 1
+
     severity = Severity.BLOCK if block_unknown else Severity.WARN
     findings = scan_diff(diff_text, registry, unknown_severity=severity)
     for finding in findings:
@@ -85,9 +89,13 @@ def _cmd_scan(registry: Registry, diff_text: str, *, block_unknown: bool) -> int
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+    # `--registry` defaults to argparse.SUPPRESS on the shared parent parser so that
+    # a value supplied before the subcommand is never silently clobbered by the
+    # subparser's own default when it re-merges its namespace (see Task 6 fix round 1).
+    registry_path = getattr(args, 'registry', DEFAULT_REGISTRY_PATH)
 
     try:
-        registry = load_registry(args.registry)
+        registry = load_registry(registry_path)
     except RegistryError as exc:
         sys.stderr.write(f'registry invalid: {exc}\n')
         return 1

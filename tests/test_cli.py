@@ -79,3 +79,80 @@ def test_scan_blocks_on_banned_model(
 
     assert main(['scan', '--registry', str(registry)]) == 1
     assert 'banned' in capsys.readouterr().err
+
+
+def test_scan_warn_only_exits_zero(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY)
+    diff = "diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1,0 +1,1 @@\n+MODEL = 'gpt-9-ultra'\n"
+    monkeypatch.setattr('sys.stdin', io.StringIO(diff))
+
+    assert main(['scan', '--registry', str(registry)]) == 0
+
+
+def test_scan_block_unknown_exits_one(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY)
+    diff = "diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1,0 +1,1 @@\n+MODEL = 'gpt-9-ultra'\n"
+    monkeypatch.setattr('sys.stdin', io.StringIO(diff))
+
+    assert main(['scan', '--registry', str(registry), '--block-unknown']) == 1
+
+
+def test_scan_rejects_input_with_no_recognizable_diff_header(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY)
+    monkeypatch.setattr('sys.stdin', io.StringIO('not a unified diff\njust some noise\n'))
+
+    assert main(['scan', '--registry', str(registry)]) == 1
+    assert 'diff' in capsys.readouterr().err.lower()
+
+
+def test_scan_on_genuinely_empty_diff_is_clean(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY)
+    monkeypatch.setattr('sys.stdin', io.StringIO(''))
+
+    assert main(['scan', '--registry', str(registry)]) == 0
+    assert capsys.readouterr().out == '0 warning(s), no blocking model usage\n'
+
+
+def test_registry_flag_before_subcommand_is_honoured(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY.replace('residency: canada', 'residency: mars'))
+
+    assert main(['--registry', str(registry), 'validate']) == 1
+    assert 'gemini-2.5-flash' in capsys.readouterr().err
+
+
+def test_registry_flag_after_subcommand_works_for_all_commands(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = tmp_path / 'models.yaml'
+    registry.write_text(VALID_ENTRY)
+    readme = tmp_path / 'README.md'
+    readme.write_text('# x\n<!-- BEGIN MODELS -->\n<!-- END MODELS -->\n')
+
+    assert main(['validate', '--registry', str(registry)]) == 0
+    assert main(['render', '--registry', str(registry), '--readme', str(readme)]) == 0
+
+    monkeypatch.setattr('sys.stdin', io.StringIO(''))
+    assert main(['scan', '--registry', str(registry)]) == 0

@@ -37,6 +37,7 @@ def registry() -> Registry:
             _resolved('gemini-3.5-flash', Status.APPROVED),
             _resolved('gemini-2.5-pro', Status.DEPRECATED),
             _resolved('gpt-4o', Status.BANNED),
+            _resolved('mistral-large', Status.BANNED),
         ),
     )
 
@@ -108,3 +109,40 @@ def test_line_numbers_come_from_the_hunk_header(registry: Registry) -> None:
 def test_multiple_models_on_one_line_each_report(registry: Registry) -> None:
     diff = _diff('app.py', "PAIR = ('gemini-2.5-pro', 'gpt-4o')")
     assert {finding.model_id for finding in scan_diff(diff, registry)} == {'gemini-2.5-pro', 'gpt-4o'}
+
+
+def test_non_prefix_registry_id_is_still_classified(registry: Registry) -> None:
+    diff = _diff('app.py', "MODEL = 'mistral-large'")
+    findings = scan_diff(diff, registry)
+    assert len(findings) == 1
+    assert findings[0].model_id == 'mistral-large'
+    assert findings[0].severity is Severity.BLOCK
+    assert findings[0].reason == 'banned'
+
+
+def test_multi_file_diff_resets_state_between_files(registry: Registry) -> None:
+    diff = (
+        'diff --git a/accuracy/report.py b/accuracy/report.py\n'
+        '--- a/accuracy/report.py\n+++ b/accuracy/report.py\n'
+        "@@ -1,0 +1,1 @@\n+MODEL = 'gemini-2.5-pro'\n"
+        'diff --git a/app.py b/app.py\n'
+        '--- a/app.py\n+++ b/app.py\n'
+        "@@ -1,0 +1,1 @@\n+MODEL = 'gemini-2.5-pro'\n"
+    )
+    findings = scan_diff(diff, registry)
+    assert len(findings) == 1
+    assert findings[0].path == 'app.py'
+
+
+def test_multi_file_diff_resets_state_between_files_reverse_order(registry: Registry) -> None:
+    diff = (
+        'diff --git a/app.py b/app.py\n'
+        '--- a/app.py\n+++ b/app.py\n'
+        "@@ -1,0 +1,1 @@\n+MODEL = 'gemini-2.5-pro'\n"
+        'diff --git a/accuracy/report.py b/accuracy/report.py\n'
+        '--- a/accuracy/report.py\n+++ b/accuracy/report.py\n'
+        "@@ -1,0 +1,1 @@\n+MODEL = 'gemini-2.5-pro'\n"
+    )
+    findings = scan_diff(diff, registry)
+    assert len(findings) == 1
+    assert findings[0].path == 'app.py'
